@@ -1,5 +1,14 @@
 # Journal des versions
 
+## 37.0.7 — 9 novembre 2026
+
+- Étend uniquement la condition de placement du module VOD de `preroll` à `preroll` ou `midroll`. Les autres conditions (XHR GET, adresse exacte, VAST 3, même VOD, contexte ARCHIVE/csai/web_csai, emplacement vidéo unique, paramètres non ambigus) sont conservées.
+- Aucun changement au moteur des directs, aux Workers, aux qualités, au lecteur, aux requêtes `fetch /ads` ni aux bannières de pause. Aucun nouveau bandeau.
+- Tests de régression sur les mid-rolls, les exclusions, l'annulation, la réutilisation de XHR et les navigations VOD/direct. Validation : 71 tests Node et 112 scénarios natifs simulés Chrome/Edge réussis.
+- Le marqueur partagé avec l'ancien complément est conservé. Désactiver ce complément puis recharger Twitch : s'il démarre d'abord, le nouveau module ne remplace pas son filtre limité aux pré-rolls.
+- Nom, namespace et URL de mise à jour conservés. La mise à jour depuis la 37.0.5 garde la même entrée Violentmonkey.
+- Validation réelle de la réponse VAST vide lors d'un mid-roll et de la reprise du lecteur encore nécessaire. Cette version ne garantit pas le blocage de tous les formats.
+
 ## 37.0.4 — 26 octobre 2026
 
 ### Pré-rolls VOD VAST

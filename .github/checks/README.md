@@ -1,5 +1,15 @@
 # Validation et contribution
 
+## Version 37.0.7 — 9 novembre 2026
+
+- Base : commit `13fec116d7d37b0235fdb35ed03dc5731f310e71` (37.0.5).
+- Avant la correction : les nouveaux tests positifs mid-roll (interception, navigation SPA, nouveau module chargé avant l'ancien complément) échouent ; les 68 autres tests réussissent.
+- Après la correction : syntaxe valide, **71 tests Node réussis**.
+- **112 scénarios natifs réussis** : 28 par placement (`preroll`, `midroll`) et par navigateur, Edge 157.0.4341.42 et Chrome 156.0.8078.80, avec Playwright 1.65.0. Le compteur Node est de **116**, car il inclut les quatre groupes parents.
+- Requêtes HTTP(S) fictives, profils isolés sans extensions : aucune publicité Twitch réelle n'a été bloquée durant ces essais automatisés. Reprise effective de la VOD, son et image à valider par l'utilisateur.
+- Le hash du moteur direct reste identique. Le test comparant le module à l'ancien complément autorise uniquement le contrôle d'origine déjà présent et la condition de placement modifiée.
+- L'ancien complément chargé en premier conserve son filtre pré-roll : cette limite est explicitement testée. Le désactiver et recharger la page après la mise à jour.
+
 ## Résultats de la version 37.0.4
 
 Contrôles exécutés le 26 octobre 2026 :
@@ -14,7 +24,7 @@ Contrôles exécutés le 26 octobre 2026 :
 
 Les essais utilisateur ont alterné complément désactivé (pré-roll visible) et activé (démarrage de la VOD sans ce pré-roll). Les captures réseau montrent des réponses locales `200`, de type XML, contenant `<VAST version="3.0"></VAST>`. Elles confirment le fonctionnement pour ce format, sans prouver la couverture de toutes les publicités Twitch.
 
-La version intégrée reprend le code du complément : un test vérifie cette équivalence, à l'exception du contrôle d'origine qui reproduit ses anciennes règles `@match`. Le code JavaScript préexistant de la 37.0.3 est vérifié par empreinte après normalisation des fins de ligne. Les modifications des métadonnées sont contrôlées séparément.
+La version 37.0.4 intégrée reprend le code du complément, à l'exception du contrôle d'origine qui reproduit ses anciennes règles `@match`. Le code JavaScript préexistant de la 37.0.3 est vérifié par empreinte après normalisation des fins de ligne. Les modifications des métadonnées sont contrôlées séparément.
 
 Les tests de navigateur injectent le fichier complet dans un contexte isolé, sans profil personnel ni extension. Toutes les requêtes HTTP(S) sont servies par des données fictives. Ils ne contactent pas Twitch et ne remplacent pas un essai avec Violentmonkey et TwitchNoSub.
 
@@ -33,29 +43,29 @@ Pour les tests de navigateur, depuis la racine du dépôt, entrer dans le dossie
 
 ```sh
 cd .github/checks
-npm install --no-save --package-lock=false playwright
+npm install --no-save --package-lock=false playwright@1.65.0
 npm run test:browser
 ```
 
 Sous Windows, la suite utilise Chrome et Edge s'ils sont présents aux emplacements standards. Sinon, elle utilise le Chromium fourni par Playwright, à installer avec `npx playwright install chromium`. Un navigateur précis peut être choisi avec la variable d'environnement `VAFT_TEST_EXECUTABLE`. `VAFT_TEST_NODE_MODULES` permet d'utiliser une installation existante de Playwright.
 
-La sortie Node compte aussi les deux tests parents : avec Chrome et Edge, **50 tests** correspondent à **48 scénarios et 2 groupes**.
+La sortie Node compte aussi les tests parents. Avec Chrome et Edge et les deux placements, **116 tests** correspondent à **112 scénarios et 4 groupes**.
 
 ## Ce qui est testé
 
-- Ciblage de la requête XHR GET VAST 3 de pré-roll pour la VOD actuellement affichée.
-- Passage inchangé des directs, mid-rolls, bannières, autres domaines, autres formats et données ambiguës ou invalides.
+- Ciblage de la requête XHR GET VAST 3 de pré-roll ou mid-roll pour la VOD actuellement affichée.
+- Passage inchangé des directs, autres placements, bannières, requêtes `fetch /ads`, autres domaines, autres formats et données ambiguës ou invalides.
 - Réponse XML vide, statut 200, événements natifs, en-têtes personnalisés et type de réponse `document`.
 - Annulation avant et après l'envoi, réutilisation d'un XHR, appels synchrones et arguments de la méthode native `open`.
 - Navigation VOD → direct → VOD sans rechargement.
-- Coexistence du complément et du script intégré dans les deux ordres de chargement, sans empilement des interceptions.
+- Coexistence pré-roll du complément et du script intégré dans les deux ordres de chargement, sans empilement des interceptions ; limite du mid-roll si l'ancien complément est chargé d'abord.
 - Conservation des nom, identifiant et URL de mise à jour, de `@grant none` et de l'absence de dépendance distante `@require`.
 
 La réponse locale utilise une URL `data:`. Son `responseURL` est donc local. Une politique CSP interdisant `data:` dans `connect-src` entraîne une erreur native : la suite vérifie cette limite, elle ne la contourne pas. Les captures utilisateur confirment l'acceptation de cette réponse dans la session Twitch testée.
 
 ## Pour signaler un problème
 
-Ouvrir une [issue](https://github.com/MATTEO12SA/twitch-vaft-violentmonkey/issues) en précisant la version du script, le navigateur, le gestionnaire, les autres scripts actifs et si le problème concerne un direct ou une VOD. Décrire les étapes et le résultat attendu ; un lien public vers la vidéo peut aider.
+Ouvrir une [issue](https://github.com/MATTEO12SA/Twitch-Ad-Block-Directs-VOD/issues) en précisant la version du script, le navigateur, le gestionnaire, les autres scripts actifs et si le problème concerne un direct ou une VOD. Décrire les étapes et le résultat attendu ; un lien public vers la vidéo peut aider.
 
 Pour une publicité VOD, les informations utiles sont la méthode et le chemin de la requête, son format de réponse, les marqueurs `rt`, `bp` et `pj.v`, et l'effet de l'activation/désactivation du script après rechargement. Ne pas publier de cookies, jetons, URL signées, HAR brut ou en-têtes de connexion. Les tests du dépôt utilisent exclusivement des valeurs fictives.
 

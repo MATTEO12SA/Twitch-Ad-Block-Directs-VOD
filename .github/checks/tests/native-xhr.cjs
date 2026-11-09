@@ -6,7 +6,7 @@ const fs = require('node:fs');
 const { chromium } = require(require.resolve('playwright', {
     paths: [process.env.VAFT_TEST_NODE_MODULES || process.cwd()]
 }));
-const { source, addonSource, makeAdUrl } = require('./helpers.cjs');
+const { source, addonSource, makeAdUrl: makeFixtureAdUrl } = require('./helpers.cjs');
 const installedWindowsBrowsers = [
     ['Edge', 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe'],
     ['Chrome', 'C:/Program Files/Google/Chrome/Application/chrome.exe']
@@ -16,7 +16,9 @@ const browsers = process.env.VAFT_TEST_EXECUTABLE
     : installedWindowsBrowsers.length ? installedWindowsBrowsers : [['Chromium', undefined]];
 
 for (const [name, executablePath] of browsers) {
-    test(`${name}: integrated userscript with isolated native XHR`, { timeout: 60000 }, async t => {
+  for (const placement of ['preroll', 'midroll']) {
+    test(`${name} ${placement}: integrated userscript with isolated native XHR`, { timeout: 60000 }, async t => {
+        const makeAdUrl = (patch = {}) => makeFixtureAdUrl({ bp: placement, ...patch });
         const browser = await chromium.launch({ executablePath, headless: true });
         t.after(() => browser.close());
         const context = await browser.newContext({ serviceWorkers: 'block' });
@@ -110,7 +112,10 @@ for (const [name, executablePath] of browsers) {
             ['another host', { url: makeAdUrl().replace('edge.ads.twitch.tv', 'example.test') }],
             ['another path', { url: makeAdUrl().replace('/2018-01-01/3p/ads?', '/ads?') }],
             ['another format', { url: makeAdUrl({ rt: 'json' }) }],
-            ['midroll outside supported scope', { url: makeAdUrl({ bp: 'midroll' }) }],
+            ['unsupported placement', { url: makeAdUrl({ bp: 'postroll' }) }],
+            ['unknown placement', { url: makeAdUrl({ bp: 'unknown' }) }],
+            ['missing placement', { url: makeAdUrl().replace('bp=' + placement + '&', '') }],
+            ['duplicate placement', { url: makeAdUrl() + '&bp=midroll' }],
             ['another VOD', { url: makeAdUrl({ u: 'https://www.twitch.tv/videos/987654321' }) }],
             ['a live URL in the request', { url: makeAdUrl({ u: 'https://www.twitch.tv/fixture_channel' }) }],
             ['a live content marker', { url: makeAdUrl({ pj: JSON.stringify({ delivery_type: 'csai', adunit: 'web_csai', v: 'LIVE' }) }) }],
@@ -126,6 +131,15 @@ for (const [name, executablePath] of browsers) {
                 assert.match(result.responseUrl, /^https:/);
             });
         }
+
+        await t.test('fetch calls to /ads are not filtered by the VOD module', async () => {
+            const result = await page.evaluate(async url => {
+                const response = await fetch(url);
+                return { status: response.status, body: await response.text() };
+            }, makeAdUrl().replace('/2018-01-01/3p/ads?', '/ads?'));
+            assert.equal(result.status, 200);
+            assert.match(result.body, /fictional-test-ad/);
+        });
 
         await t.test('SPA transition to live passes through, return to VOD is handled', async () => {
             await page.evaluate(() => history.pushState({}, '', '/fixture_channel'));
@@ -228,7 +242,7 @@ for (const [name, executablePath] of browsers) {
             ['companion then full userscript', addonSource, source],
             ['full userscript then companion', source, addonSource]
         ]) {
-            await t.test(`one native XHR wrapper with ${order}`, async () => {
+            await t.test(`pre-roll coexistence uses one native XHR wrapper with ${order}`, async () => {
                 const isolated = await browser.newContext({ serviceWorkers: 'block' });
                 try {
                     let externalRequests = 0;
@@ -248,7 +262,7 @@ for (const [name, executablePath] of browsers) {
                         xhr.onloadend = () => resolve({ sameWrapper, status: xhr.status,
                             body: xhr.responseText, responseUrl: xhr.responseURL });
                         xhr.send();
-                    }), makeAdUrl());
+                    }), makeFixtureAdUrl());
                     assert.equal(result.sameWrapper, true);
                     assert.equal(result.status, 200);
                     assert.equal(result.body, '<VAST version="3.0"></VAST>');
@@ -273,4 +287,5 @@ for (const [name, executablePath] of browsers) {
 
         console.log(`${name} ${browser.version()}: all requests served by local fixtures; no Twitch or extensions tested.`);
     });
+  }
 }

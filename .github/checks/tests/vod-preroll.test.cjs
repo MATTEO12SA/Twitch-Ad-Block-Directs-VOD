@@ -22,7 +22,7 @@ test('release metadata keeps the existing installation and main update URLs', ()
     const metadata = name => source.match(new RegExp('^// @' + name + '\\s+(.+)$', 'm'))?.[1].trim();
     assert.equal(metadata('name'), 'TwitchAD VAFT MATTEO12SA');
     assert.equal(metadata('namespace'), 'https://github.com/MATTEO12SA/twitch-vaft-violentmonkey');
-    assert.equal(metadata('version'), '37.0.5');
+    assert.equal(metadata('version'), '37.0.7');
     assert.equal(metadata('updateURL'), 'https://raw.githubusercontent.com/MATTEO12SA/Twitch-Ad-Block-Directs-VOD/main/vaft.user.js');
     assert.equal(metadata('downloadURL'), metadata('updateURL'));
     assert.equal(metadata('run-at'), 'document-start');
@@ -38,17 +38,22 @@ test('legacy live engine is byte-identical to 37.0.3 after normalizing line endi
         'c8ccd30292db9b7761d29489527a90efcafc5c7a02b95cda26ce0cbffe7003af');
 });
 
-test('integrated VOD module preserves the tested add-on except its explicit origin guard', () => {
+test('VOD module differs from the tested add-on only by its origin guard and accepted placements', () => {
     const guard = "    // Keep the scope of the validated companion's @match rules.\n" +
         "    if (window.location.origin !== 'https://www.twitch.tv' && window.location.origin !== 'https://twitch.tv') return;\n\n";
     assert.ok(vodSource.includes(guard));
-    assert.equal(vodSource.replace(guard, '').trim(), addonSource.trim());
+    const original = "params.get('bp') !== 'preroll'";
+    const candidate = "!['preroll', 'midroll'].includes(params.get('bp'))";
+    assert.equal(addonSource.split(original).length, 2);
+    assert.equal(vodSource.split(candidate).length, 2);
+    assert.equal(vodSource.replace(guard, '').trim(), addonSource.replace(original, candidate).trim());
 });
 
-test('matched pre-roll becomes an empty VAST, while this and open arguments are preserved', () => {
+for (const placement of ['preroll', 'midroll']) {
+test(`matched ${placement} becomes an empty VAST, while this and open arguments are preserved`, () => {
     const r = realm(); r.run(vodSource);
     const xhr = new r.Xhr();
-    xhr.open('GET', makeAdUrl(), false, 'fictional-user', 'fictional-password');
+    xhr.open('GET', makeAdUrl({ bp: placement }), false, 'fictional-user', 'fictional-password');
     const call = r.calls[0];
     assert.equal(call.receiver, xhr);
     assert.equal(call.args[0], 'GET');
@@ -57,6 +62,7 @@ test('matched pre-roll becomes an empty VAST, while this and open arguments are 
     assert.equal(local.protocol, 'data:');
     assert.equal(decodeURIComponent(call.args[1].split(',')[1]), '<VAST version="3.0"></VAST>');
 });
+}
 
 const passthroughCases = [
     ['POST', 'POST', makeAdUrl()],
@@ -65,7 +71,10 @@ const passthroughCases = [
     ['other endpoint', 'GET', makeAdUrl().replace('/2018-01-01/3p/ads?', '/ads?')],
     ['credentials in URL', 'GET', makeAdUrl().replace('https://', 'https://fictional:password@')],
     ['another format', 'GET', makeAdUrl({ rt: 'json' })],
-    ['mid-roll outside supported scope', 'GET', makeAdUrl({ bp: 'midroll' })],
+    ['unsupported placement', 'GET', makeAdUrl({ bp: 'postroll' })],
+    ['unknown placement', 'GET', makeAdUrl({ bp: 'unknown' })],
+    ['missing placement', 'GET', makeAdUrl().replace('bp=preroll&', '')],
+    ['duplicate placement', 'GET', makeAdUrl() + '&bp=midroll'],
     ['other publisher', 'GET', makeAdUrl({ pbid: 'other' })],
     ['another VOD', 'GET', makeAdUrl({ u: 'https://www.twitch.tv/videos/987654321' })],
     ['live playback URL', 'GET', makeAdUrl({ u: 'https://www.twitch.tv/fixture_channel' })],
@@ -82,13 +91,20 @@ const passthroughCases = [
     ['duplicate field', 'GET', makeAdUrl() + '&rt=json'],
     ['missing field', 'GET', makeAdUrl().replace('pbid=twitch&', '')]
 ];
-for (const [name, method, url] of passthroughCases) {
-    test(`leaves ${name} untouched`, () => {
+for (const placement of ['preroll', 'midroll']) {
+for (const [name, method, originalUrl] of passthroughCases) {
+    const parsed = new URL(originalUrl);
+    if (parsed.searchParams.getAll('bp').length === 1 && parsed.searchParams.get('bp') === 'preroll') {
+        parsed.searchParams.set('bp', placement);
+    }
+    const url = parsed.href;
+    test(`${placement}: leaves ${name} untouched`, () => {
         const r = realm(); r.run(vodSource);
         const xhr = new r.Xhr(); xhr.open(method, url);
         assert.equal(r.calls[0].receiver, xhr);
         assert.deepEqual(r.calls[0].args, [method, url]);
     });
+}
 }
 
 for (const href of ['https://www.twitch.tv/fixture_channel', 'https://www.twitch.tv/', 'https://www.twitch.tv/videos/987654321']) {
@@ -111,14 +127,38 @@ test('does not install VOD hooks in an iframe', () => {
     assert.equal(r.Xhr.prototype.open, r.nativeOpen);
 });
 
-test('SPA navigation reads the current VOD on each call', () => {
+for (const placement of ['preroll', 'midroll']) {
+test(`${placement}: SPA navigation reads the current VOD on each call`, () => {
     const r = realm(); r.run(vodSource);
-    const xhr = new r.Xhr(); xhr.open('GET', makeAdUrl());
+    const url = makeAdUrl({ bp: placement });
+    const xhr = new r.Xhr(); xhr.open('GET', url);
     r.window.location = new URL('https://www.twitch.tv/fixture_channel');
-    xhr.open('GET', makeAdUrl());
+    xhr.open('GET', url);
     r.window.location = new URL('https://www.twitch.tv/videos/123456789');
-    xhr.open('GET', makeAdUrl());
+    xhr.open('GET', url);
     assert.deepEqual(r.calls.map(c => c.args[1].startsWith('data:')), [true, false, true]);
+});
+}
+
+test('legacy companion loaded first still owns the guard and must be disabled for mid-roll support', () => {
+    const r = realm(); r.run(addonSource); r.run(vodSource);
+    const url = makeAdUrl({ bp: 'midroll' });
+    new r.Xhr().open('GET', url);
+    assert.equal(r.calls[0].args[1], url);
+});
+
+test('candidate loaded first keeps mid-roll support when the legacy companion starts later', () => {
+    const r = realm(); r.run(vodSource); r.run(addonSource);
+    new r.Xhr().open('GET', makeAdUrl({ bp: 'midroll' }));
+    assert.ok(r.calls[0].args[1].startsWith('data:'));
+});
+
+test('page fetch remains untouched, including pause-ad calls to /ads', () => {
+    const r = realm();
+    const fetch = () => {};
+    r.window.fetch = fetch;
+    r.run(vodSource);
+    assert.equal(r.window.fetch, fetch);
 });
 
 for (const [label, first, second] of [

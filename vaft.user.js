@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         TwitchAD VAFT MATTEO12SA
 // @namespace    https://github.com/MATTEO12SA/twitch-vaft-violentmonkey
-// @version      37.0.5
-// @description  Bloque les publicités Twitch en direct avec VAFT et les pré-rolls VOD VAST pris en charge.
+// @version      37.0.7
+// @description  Bloque les publicités Twitch en direct avec VAFT et filtre les pré-rolls et mid-rolls VOD VAST pris en charge.
 // @updateURL    https://raw.githubusercontent.com/MATTEO12SA/Twitch-Ad-Block-Directs-VOD/main/vaft.user.js
 // @downloadURL  https://raw.githubusercontent.com/MATTEO12SA/Twitch-Ad-Block-Directs-VOD/main/vaft.user.js
 // @homepageURL  https://github.com/MATTEO12SA/Twitch-Ad-Block-Directs-VOD
@@ -1120,7 +1120,7 @@
     };
 })();
 
-// VOD pre-roll: isolated VAST handling, shared guard with the validated companion.
+// VOD pre-roll: isolated VAST handling extended to mid-roll, shared guard with the validated companion.
 (() => {
     'use strict';
 
@@ -1157,7 +1157,7 @@
             for (const key of ['rt', 'bp', 'pbid', 'u', 'pj', 'slots']) {
                 if (params.getAll(key).length !== 1) return false;
             }
-            if (params.get('rt') !== 'vast3' || params.get('bp') !== 'preroll' ||
+            if (params.get('rt') !== 'vast3' || !['preroll', 'midroll'].includes(params.get('bp')) ||
                 params.get('pbid') !== 'twitch') return false;
             if (getVodId(new URL(params.get('u'))) !== vodId) return false;
 

@@ -1,4 +1,4 @@
-# Twitch Ad Block — Directs & VOD
+# Twitch Ad Block  Directs & VOD
 
 **Par MATTEO12SA · Pour Violentmonkey · Version 37.0.8**
 

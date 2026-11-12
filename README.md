@@ -23,7 +23,7 @@ Si le lien affiche uniquement du code, copier son contenu dans l'éditeur de l'e
 - **Rediffusions et highlights :** filtrage ciblé des demandes VAST 3 de pré-roll et de mid-roll, sans bandeau supplémentaire. Depuis la 37.0.8, il s'applique aussi aux highlights et aux rediffusions lancées sur la page d'une chaîne.
 - **Limites :** les autres formats et les publicités fixes affichées à la pause ne sont pas ciblés par l'ajout VOD. Certaines publicités peuvent encore passer.
 
-La 38.0.0 remplace uniquement le moteur des directs ; le filtre VOD de la 37.0.8 est inchangé. **Le nouveau moteur n'est pas validé par les tests automatisés : il doit être essayé sur de vrais directs.** Pour les VOD, le blocage d'une vraie coupure mid-roll et la reprise normale restent à confirmer. [Détails de validation](.github/checks/README.md).
+Depuis la 38.0.2, le moteur des directs est nouveau ; le filtre VOD de la 37.0.8 est inchangé. Le script a été essayé sur Twitch : directs avec coupures simulées, VOD, highlights, et cohabitation avec TwitchNoSub. **Restent à confirmer à l'usage : les chaînes en 1440p, les longues sessions, et pour les VOD le blocage d'une vraie coupure mid-roll.** [Détails de validation](.github/checks/README.md).
 
 ## Mises à jour et aide
 

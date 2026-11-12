@@ -1,6 +1,6 @@
 # Journal des versions
 
-## 38.0.2 — 12 novembre 2026 (candidate de test, branche `test-38.0.0-moteur-directs`)
+## 38.0.2 — 12 novembre 2026
 
 Corrections issues de la relecture complète du moteur, sans changement du blocage lui-même :
 
@@ -10,9 +10,11 @@ Corrections issues de la relecture complète du moteur, sans changement du bloca
 - **Comportements réservés au direct :** le recalage sur le direct après un rechargement, la relance automatique au retour sur l'onglet et la mise en pause des vidéos publicitaires séparées ne s'appliquent plus aux VOD. Une VOD mise en pause reste en pause.
 - **Code retiré :** l'envoi de faux signaux « publicité vue » à Twitch (166 lignes). Il était désactivé par défaut et ne s'exécutait jamais ; le réglage `twitchAdSolutions_disableAdSpoofing` n'existe plus.
 - Chaque ligne modifiée du moteur porte la mention `MATTEO12SA`. Le module VOD est identique à celui de la 37.0.8.
-- Validation : 86 tests Node, 128 scénarios natifs Chrome/Edge, puis essais réels sur Twitch sans erreur : direct avec coupure simulée (cas normal et pire cas), VOD, highlight, page de chaîne, et avec TwitchNoSub.
+- Validation : 86 tests Node, 128 scénarios natifs Chrome/Edge, puis essais réels sur Twitch sans erreur : direct avec coupure simulée (cas normal et pire cas, puis trois coupures à la suite), VOD, highlight, page de chaîne, et avec TwitchNoSub.
+- Comportement vérifié sur Twitch : une VOD mise en pause pendant que l'onglet est caché reste en pause au retour, comme sans script (la 38.0.1 la relançait). Sur un direct, la relance au retour est conservée.
+- Première version du nouveau moteur publiée sur `main`. Une vraie coupure publicitaire en direct avait été bloquée chez l'utilisateur avec la 38.0.1.
 
-## 38.0.1 — 12 novembre 2026 (candidate de test, branche `test-38.0.0-moteur-directs`)
+## 38.0.1 — 12 novembre 2026 (version de test, non publiée sur `main`)
 
 - **Correction d'un défaut du moteur d'origine** : à chaque retour sur l'onglet Twitch, la surveillance du lecteur lançait une boucle supplémentaire sans arrêter la précédente. Mesuré sur Twitch : 10 passages en 6 secondes au départ, 110 après 10 retours sur l'onglet. La 37.0.8 n'avait pas ce défaut.
 - Effet possible sur une longue session : charge du processeur croissante et fausses détections de blocage, puisque plusieurs boucles comparent l'état du lecteur à quelques millisecondes d'intervalle.
@@ -20,7 +22,7 @@ Corrections issues de la relecture complète du moteur, sans changement du bloca
 - Le moteur diffère maintenant du fichier de ryanbr par deux changements documentés : le texte du bandeau et cette correction. Le module VOD est inchangé.
 - Validation : 86 tests Node, 128 scénarios natifs Chrome/Edge, puis essais réels sur Twitch (direct avec coupure simulée, VOD) sans erreur.
 
-## 38.0.0 — 12 novembre 2026 (candidate de test, branche `test-38.0.0-moteur-directs`)
+## 38.0.0 — 12 novembre 2026 (version de test, non publiée sur `main`)
 
 - **Nouveau moteur des directs** : celui de vaft 68.5.7 du fork [ryanbr/TwitchAdSolutions](https://github.com/ryanbr/TwitchAdSolutions), fichier `vaft/vaft.user.js` au commit `74f1248f22a61fcbb559882f93cb60ca25b414e8`, repris tel quel. Une seule ligne diffère : le bandeau affiche « Pub bloquée ».
 - Motif : essai de l'utilisateur sur des directs avec ce script, sans publicité ni baisse de qualité. Le moteur 37.0.0 essayait `embed`, `popout` puis `autoplay` (360p), et n'essayait que `autoplay` pendant 1,5 s après chaque rechargement du lecteur.
@@ -29,7 +31,7 @@ Corrections issues de la relecture complète du moteur, sans changement du bloca
 - Nom, namespace et URL de mise à jour conservés. Réglages facultatifs du moteur : clés `localStorage` `twitchAdSolutions_*`, décrites dans le dépôt de ryanbr.
 - Garder un seul script actif : désactiver « TwitchAdSolutions (vaft) » de ryanbr s'il est installé.
 - Limites connues du moteur d'origine : dernière mise à jour le 27 août 2026 ; ses utilisateurs signalent depuis fin octobre des pauses autour des coupures.
-- Validation : 86 tests Node et 128 scénarios natifs Chrome/Edge réussis, qui couvrent le module VOD et le démarrage du moteur. Essais réels sur Twitch sans erreur (direct, coupure simulée, VOD, highlight, page de chaîne, avec TwitchNoSub) : détail dans `.github/checks/README.md`. **Aucune vraie coupure publicitaire en direct n'a été observée : essai d'une semaine par l'utilisateur avant fusion.**
+- Validation : 86 tests Node et 128 scénarios natifs Chrome/Edge réussis, qui couvrent le module VOD et le démarrage du moteur. Essais réels sur Twitch sans erreur (direct, coupure simulée, VOD, highlight, page de chaîne, avec TwitchNoSub) : détail dans `.github/checks/README.md`. Aucune vraie coupure publicitaire en direct n'a été observée pendant ces essais.
 
 ## 37.0.8 — 12 novembre 2026
 

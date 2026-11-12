@@ -119,6 +119,7 @@ for (const [name, executablePath] of browsers) {
             ['another VOD', { url: makeAdUrl({ u: 'https://www.twitch.tv/videos/987654321' }) }],
             ['a live URL in the request', { url: makeAdUrl({ u: 'https://www.twitch.tv/fixture_channel' }) }],
             ['a live content marker', { url: makeAdUrl({ pj: JSON.stringify({ delivery_type: 'csai', adunit: 'web_csai', v: 'LIVE' }) }) }],
+            ['an unvalidated content type', { url: makeAdUrl({ pj: JSON.stringify({ delivery_type: 'csai', adunit: 'web_csai', v: 'UPLOAD' }) }) }],
             ['malformed metadata', { url: makeAdUrl({ pj: '{' }) }],
             ['a banner slot', { url: makeAdUrl({ slots: JSON.stringify([{ id: 'homepage', mt: 'd' }]) }) }],
             ['ambiguous duplicate parameter', { url: makeAdUrl() + '&rt=json' }]
@@ -146,6 +147,21 @@ for (const [name, executablePath] of browsers) {
             assert.equal((await request()).ads, 1);
             await page.evaluate(() => history.pushState({}, '', '/videos/123456789'));
             assert.equal((await request()).ads, 0);
+        });
+
+        await t.test('highlight content returns the empty VAST', async () => {
+            const result = await request({ url: makeAdUrl({ pj: JSON.stringify({ delivery_type: 'csai', adunit: 'web_csai', v: 'HIGHLIGHT' }) }) });
+            assert.equal(result.status, 200);
+            assert.equal(result.ads, 0);
+            assert.ok(result.responseUrl.startsWith('data:application/xml'));
+        });
+
+        await t.test('replay on a channel page is handled, live content there passes through', async () => {
+            const channelUrl = 'https://www.twitch.tv/fixture_channel';
+            await page.evaluate(() => history.pushState({}, '', '/fixture_channel'));
+            assert.equal((await request({ url: makeAdUrl({ u: channelUrl }) })).ads, 0);
+            assert.equal((await request({ url: makeAdUrl({ u: channelUrl, pj: JSON.stringify({ delivery_type: 'csai', adunit: 'web_csai', v: 'LIVE' }) }) })).ads, 1);
+            await page.evaluate(() => history.pushState({}, '', '/videos/123456789'));
         });
 
         await t.test('XHR can be reused for ordinary requests', async () => {

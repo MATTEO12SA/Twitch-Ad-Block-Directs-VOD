@@ -22,7 +22,7 @@ test('release metadata keeps the existing installation and main update URLs', ()
     const metadata = name => source.match(new RegExp('^// @' + name + '\\s+(.+)$', 'm'))?.[1].trim();
     assert.equal(metadata('name'), 'TwitchAD VAFT MATTEO12SA');
     assert.equal(metadata('namespace'), 'https://github.com/MATTEO12SA/twitch-vaft-violentmonkey');
-    assert.equal(metadata('version'), '37.0.7');
+    assert.equal(metadata('version'), '37.0.8');
     assert.equal(metadata('updateURL'), 'https://raw.githubusercontent.com/MATTEO12SA/Twitch-Ad-Block-Directs-VOD/main/vaft.user.js');
     assert.equal(metadata('downloadURL'), metadata('updateURL'));
     assert.equal(metadata('run-at'), 'document-start');
@@ -38,15 +38,34 @@ test('legacy live engine is byte-identical to 37.0.3 after normalizing line endi
         'c8ccd30292db9b7761d29489527a90efcafc5c7a02b95cda26ce0cbffe7003af');
 });
 
-test('VOD module differs from the tested add-on only by its origin guard and accepted placements', () => {
+test('VOD module differs from the tested add-on only by its documented changes', () => {
     const guard = "    // Keep the scope of the validated companion's @match rules.\n" +
         "    if (window.location.origin !== 'https://www.twitch.tv' && window.location.origin !== 'https://twitch.tv') return;\n\n";
     assert.ok(vodSource.includes(guard));
-    const original = "params.get('bp') !== 'preroll'";
-    const candidate = "!['preroll', 'midroll'].includes(params.get('bp'))";
-    assert.equal(addonSource.split(original).length, 2);
-    assert.equal(vodSource.split(candidate).length, 2);
-    assert.equal(vodSource.replace(guard, '').trim(), addonSource.replace(original, candidate).trim());
+    // Each pair is [add-on text, module text]; every one must apply exactly once.
+    const changes = [
+        // 37.0.7: mid-roll placement.
+        ["params.get('bp') !== 'preroll'", "!['preroll', 'midroll'].includes(params.get('bp'))"],
+        // 37.0.8: the request must name the displayed Twitch page instead of a /videos/<id> page.
+        ["    function getVodId(url) {\n",
+            "    // Twitch page hosting the player: a VOD page, or a channel page replaying a VOD.\n" +
+            "    function getTwitchPagePath(url) {\n"],
+        ["        return url.pathname.match(/^\\/videos\\/(\\d+)\\/?$/)?.[1] ?? null;\n",
+            "        return url.pathname.replace(/\\/$/, '') || '/';\n"],
+        ["            const vodId = getVodId(page);\n            if (!vodId) return false;\n",
+            "            const pagePath = getTwitchPagePath(page);\n            if (!pagePath) return false;\n"],
+        ["            if (getVodId(new URL(params.get('u'))) !== vodId) return false;\n",
+            "            if (getTwitchPagePath(new URL(params.get('u'))) !== pagePath) return false;\n"],
+        // 37.0.8: highlights carry the same request with another content type.
+        ["details?.v === 'ARCHIVE'", "['ARCHIVE', 'HIGHLIGHT'].includes(details?.v)"]
+    ];
+    let expected = addonSource;
+    for (const [original, candidate] of changes) {
+        assert.equal(expected.split(original).length, 2, 'add-on text must occur once: ' + original);
+        expected = expected.replace(original, () => candidate);
+        assert.equal(vodSource.split(candidate).length, 2, 'module text must occur once: ' + candidate);
+    }
+    assert.equal(vodSource.replace(guard, '').trim(), expected.trim());
 });
 
 for (const placement of ['preroll', 'midroll']) {
@@ -81,6 +100,8 @@ const passthroughCases = [
     ['foreign page URL', 'GET', makeAdUrl({ u: 'https://other.example/videos/123456789' })],
     ['invalid page URL', 'GET', makeAdUrl({ u: 'invalid' })],
     ['live content', 'GET', makeAdUrl({ pj: JSON.stringify({ delivery_type: 'csai', adunit: 'web_csai', v: 'LIVE' }) })],
+    ['unvalidated content type', 'GET', makeAdUrl({ pj: JSON.stringify({ delivery_type: 'csai', adunit: 'web_csai', v: 'UPLOAD' }) })],
+    ['missing content type', 'GET', makeAdUrl({ pj: JSON.stringify({ delivery_type: 'csai', adunit: 'web_csai' }) })],
     ['unknown insertion type', 'GET', makeAdUrl({ pj: JSON.stringify({ delivery_type: 'unknown', adunit: 'web_csai', v: 'ARCHIVE' }) })],
     ['malformed JSON', 'GET', makeAdUrl({ pj: '{' })],
     ['missing JSON object', 'GET', makeAdUrl({ pj: 'null' })],
@@ -114,6 +135,45 @@ for (const href of ['https://www.twitch.tv/fixture_channel', 'https://www.twitch
         assert.equal(r.calls[0].args[1], makeAdUrl());
     });
 }
+
+// 37.0.8: shapes observed on Twitch on 12 November 2026 that 37.0.7 let through.
+const channelPage = 'https://www.twitch.tv/fixture_channel';
+const withContent = v => JSON.stringify({ delivery_type: 'csai', adunit: 'web_csai', v });
+for (const placement of ['preroll', 'midroll']) {
+    test(`${placement}: a highlight is handled like an archive`, () => {
+        const r = realm(); r.run(vodSource);
+        new r.Xhr().open('GET', makeAdUrl({ bp: placement, pj: withContent('HIGHLIGHT') }));
+        assert.ok(r.calls[0].args[1].startsWith('data:'));
+    });
+
+    for (const content of ['ARCHIVE', 'HIGHLIGHT']) {
+        test(`${placement}: ${content} replayed on a channel page is handled`, () => {
+            const r = realm(channelPage); r.run(vodSource);
+            new r.Xhr().open('GET', makeAdUrl({ bp: placement, u: channelPage, pj: withContent(content) }));
+            assert.ok(r.calls[0].args[1].startsWith('data:'));
+        });
+    }
+
+    test(`${placement}: live content on a channel page is left untouched`, () => {
+        const r = realm(channelPage); r.run(vodSource);
+        const url = makeAdUrl({ bp: placement, u: channelPage, pj: withContent('LIVE') });
+        new r.Xhr().open('GET', url);
+        assert.equal(r.calls[0].args[1], url);
+    });
+
+    test(`${placement}: a request naming another channel page is left untouched`, () => {
+        const r = realm(channelPage); r.run(vodSource);
+        const url = makeAdUrl({ bp: placement, u: 'https://www.twitch.tv/another_channel' });
+        new r.Xhr().open('GET', url);
+        assert.equal(r.calls[0].args[1], url);
+    });
+}
+
+test('page and request may differ by a trailing slash, a query string or the www prefix', () => {
+    const r = realm('https://www.twitch.tv/videos/123456789/?filter=archives&sort=time'); r.run(vodSource);
+    new r.Xhr().open('GET', makeAdUrl({ u: 'https://twitch.tv/videos/123456789?t=1h' }));
+    assert.ok(r.calls[0].args[1].startsWith('data:'));
+});
 
 for (const href of ['http://www.twitch.tv/videos/123456789', 'https://clips.twitch.tv/videos/123456789', 'https://player.twitch.tv/videos/123456789']) {
     test(`does not install VOD hooks at ${new URL(href).origin}`, () => {

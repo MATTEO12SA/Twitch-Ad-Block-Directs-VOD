@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         TwitchAD VAFT MATTEO12SA
 // @namespace    https://github.com/MATTEO12SA/twitch-vaft-violentmonkey
-// @version      37.0.7
+// @version      37.0.8
 // @description  Bloque les publicités Twitch en direct avec VAFT et filtre les pré-rolls et mid-rolls VOD VAST pris en charge.
 // @updateURL    https://raw.githubusercontent.com/MATTEO12SA/Twitch-Ad-Block-Directs-VOD/main/vaft.user.js
 // @downloadURL  https://raw.githubusercontent.com/MATTEO12SA/Twitch-Ad-Block-Directs-VOD/main/vaft.user.js
@@ -1120,7 +1120,7 @@
     };
 })();
 
-// VOD pre-roll: isolated VAST handling extended to mid-roll, shared guard with the validated companion.
+// VOD pre-roll: isolated VAST handling for pre-roll and mid-roll of archives and highlights, on VOD pages and channel-page replays; shared guard with the validated companion.
 (() => {
     'use strict';
 
@@ -1134,10 +1134,11 @@
     // VAST 3.0 section 2.4.2.4: an empty VAST denotes a no-ad response.
     const noAdUrl = 'data:application/xml;charset=utf-8,%3CVAST%20version%3D%223.0%22%3E%3C%2FVAST%3E';
 
-    function getVodId(url) {
+    // Twitch page hosting the player: a VOD page, or a channel page replaying a VOD.
+    function getTwitchPagePath(url) {
         if (url.origin !== 'https://www.twitch.tv' && url.origin !== 'https://twitch.tv') return null;
         if (url.username || url.password) return null;
-        return url.pathname.match(/^\/videos\/(\d+)\/?$/)?.[1] ?? null;
+        return url.pathname.replace(/\/$/, '') || '/';
     }
 
     function isCapturedVodPreroll(method, input) {
@@ -1146,8 +1147,8 @@
         if (typeof input !== 'string' && !(input instanceof URL)) return false;
         try {
             const page = new URL(window.location.href);
-            const vodId = getVodId(page);
-            if (!vodId) return false;
+            const pagePath = getTwitchPagePath(page);
+            if (!pagePath) return false;
 
             const url = new URL(input, page);
             if (url.origin !== 'https://edge.ads.twitch.tv' ||
@@ -1159,7 +1160,7 @@
             }
             if (params.get('rt') !== 'vast3' || !['preroll', 'midroll'].includes(params.get('bp')) ||
                 params.get('pbid') !== 'twitch') return false;
-            if (getVodId(new URL(params.get('u'))) !== vodId) return false;
+            if (getTwitchPagePath(new URL(params.get('u'))) !== pagePath) return false;
 
             const detailsText = params.get('pj');
             const slotsText = params.get('slots');
@@ -1167,7 +1168,7 @@
             const details = JSON.parse(detailsText);
             const slots = JSON.parse(slotsText);
             return details?.delivery_type === 'csai' && details?.adunit === 'web_csai' &&
-                details?.v === 'ARCHIVE' && Array.isArray(slots) && slots.length === 1 &&
+                ['ARCHIVE', 'HIGHLIGHT'].includes(details?.v) && Array.isArray(slots) && slots.length === 1 &&
                 slots[0]?.id === 'twitch-player-ui' && slots[0]?.mt === 'v';
         } catch {
             return false;

@@ -1,5 +1,16 @@
 # Journal des versions
 
+## 37.0.8 — 12 novembre 2026 (candidate de test, branche `test-37.0.8-vod`)
+
+- Deux demandes de pré-roll VOD observées sur Twitch le 12 novembre 2026 échappaient à la 37.0.7, alors qu'elles ont le format déjà pris en charge :
+  - **highlight** : `pj.v` vaut `HIGHLIGHT` au lieu de `ARCHIVE` ;
+  - **rediffusion lancée sur la page d'une chaîne hors ligne** : la page est `/<chaîne>` et le paramètre `u` désigne cette page, pas une page `/videos/<id>`.
+- Le module VOD accepte désormais les contenus `ARCHIVE` et `HIGHLIGHT`. La condition « même VOD que la page » devient « `u` désigne la page Twitch affichée » (même chemin ; barre finale, paramètres et préfixe `www` ignorés).
+- Les autres conditions sont conservées : XHR GET, adresse exacte, VAST 3, placement `preroll` ou `midroll`, `pbid=twitch`, `csai` / `web_csai`, emplacement vidéo unique, paramètres non ambigus.
+- Restent intacts : les contenus `LIVE`, les types non observés (`UPLOAD` par exemple), les demandes qui nomment une autre page, les requêtes `fetch /ads` et les bannières.
+- Aucun changement au moteur des directs, aux Workers, aux qualités ni au lecteur. Nom, namespace et URL de mise à jour conservés.
+- Validation : 86 tests Node et 124 scénarios natifs simulés Chrome/Edge réussis. Le blocage réel sur Twitch reste à confirmer.
+
 ## 37.0.7 — 9 novembre 2026
 
 - Étend uniquement la condition de placement du module VOD de `preroll` à `preroll` ou `midroll`. Les autres conditions (XHR GET, adresse exacte, VAST 3, même VOD, contexte ARCHIVE/csai/web_csai, emplacement vidéo unique, paramètres non ambigus) sont conservées.

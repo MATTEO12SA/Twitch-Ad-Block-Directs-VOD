@@ -1,5 +1,15 @@
 # Validation et contribution
 
+## Version 38.0.2 — 12 novembre 2026 (candidate de test)
+
+- Base : 38.0.1 (commit `c92649f`). Six corrections du moteur et un retrait de code, décrits dans le journal des versions. Chaque ligne modifiée porte la mention `MATTEO12SA`.
+- Par rapport au fichier de ryanbr : 166 lignes en moins, 25 lignes propres à ce dépôt. Corps du moteur : SHA-256 `609d761ac6e6b2cec54e0138234384725ce5008f9c1f6f695dd69b4736452d85`. Le module VOD est identique, caractère pour caractère, à celui de la 37.0.8.
+- Analyse automatique après les changements : aucune fonction, option ni champ inutilisé ; aucune référence restante au code retiré.
+- 86 tests Node et 128 scénarios natifs réussis. Boucle de surveillance : 10 passages en 6 secondes, avant et après 15 retours sur l'onglet.
+- Essais réels sur Twitch avec la 38.0.2, sans erreur : direct avec coupure simulée (720p continu, rechargement puis reprise), pire cas simulé (360p pendant la coupure, retour en 720p), VOD, highlight et page de chaîne (demande publicitaire remplacée), puis direct et VOD publique avec TwitchNoSub.
+- Pendant ces essais, une chaîne a cessé de diffuser quelques minutes : la lecture ne démarrait avec aucune version, puis a repris avec les quatre versions comparées (38.0.2, 38.0.1, fichier de ryanbr, 37.0.8). Ce n'est pas un défaut du script.
+- Toujours non couvert : une vraie coupure publicitaire avec la 38.0.2, les chaînes en 1440p HEVC, une VOD réservée aux abonnés lue avec TwitchNoSub, les longues sessions.
+
 ## Version 38.0.1 — 12 novembre 2026 (candidate de test)
 
 - Relecture complète du script 38.0.0. Défaut trouvé dans le moteur d'origine : `monitorPlayerBuffering` se reprogramme sans condition, et l'écouteur `visibilitychange` l'appelle aussi directement à chaque retour sur l'onglet. Chaque retour ajoute donc une boucle permanente.

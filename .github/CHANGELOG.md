@@ -1,5 +1,17 @@
 # Journal des versions
 
+## 38.0.2 — 12 novembre 2026 (candidate de test, branche `test-38.0.0-moteur-directs`)
+
+Corrections issues de la relecture complète du moteur, sans changement du blocage lui-même :
+
+- **Requête bloquée pour toujours :** si le traitement d'une playlist échoue dans le Worker, la requête du lecteur est maintenant rejetée au lieu de rester en attente sans fin (deux endroits).
+- **Appel GraphQL sans en-têtes :** l'interception de `fetch` ne suppose plus que chaque appel `gql` fournit des en-têtes.
+- **Mauvaise vidéo visée :** après un rechargement et au retour sur l'onglet, le moteur agit sur la vidéo du lecteur et plus sur « la première vidéo de la page », qui peut être une publicité cachée.
+- **Comportements réservés au direct :** le recalage sur le direct après un rechargement, la relance automatique au retour sur l'onglet et la mise en pause des vidéos publicitaires séparées ne s'appliquent plus aux VOD. Une VOD mise en pause reste en pause.
+- **Code retiré :** l'envoi de faux signaux « publicité vue » à Twitch (166 lignes). Il était désactivé par défaut et ne s'exécutait jamais ; le réglage `twitchAdSolutions_disableAdSpoofing` n'existe plus.
+- Chaque ligne modifiée du moteur porte la mention `MATTEO12SA`. Le module VOD est identique à celui de la 37.0.8.
+- Validation : 86 tests Node, 128 scénarios natifs Chrome/Edge, puis essais réels sur Twitch sans erreur : direct avec coupure simulée (cas normal et pire cas), VOD, highlight, page de chaîne, et avec TwitchNoSub.
+
 ## 38.0.1 — 12 novembre 2026 (candidate de test, branche `test-38.0.0-moteur-directs`)
 
 - **Correction d'un défaut du moteur d'origine** : à chaque retour sur l'onglet Twitch, la surveillance du lecteur lançait une boucle supplémentaire sans arrêter la précédente. Mesuré sur Twitch : 10 passages en 6 secondes au départ, 110 après 10 retours sur l'onglet. La 37.0.8 n'avait pas ce défaut.

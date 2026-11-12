@@ -22,7 +22,7 @@ test('release metadata keeps the existing installation and main update URLs', ()
     const metadata = name => source.match(new RegExp('^// @' + name + '\\s+(.+)$', 'm'))?.[1].trim();
     assert.equal(metadata('name'), 'TwitchAD VAFT MATTEO12SA');
     assert.equal(metadata('namespace'), 'https://github.com/MATTEO12SA/twitch-vaft-violentmonkey');
-    assert.equal(metadata('version'), '38.0.1');
+    assert.equal(metadata('version'), '38.0.2');
     assert.equal(metadata('updateURL'), 'https://raw.githubusercontent.com/MATTEO12SA/Twitch-Ad-Block-Directs-VOD/main/vaft.user.js');
     assert.equal(metadata('downloadURL'), metadata('updateURL'));
     assert.equal(metadata('run-at'), 'document-start');
@@ -35,14 +35,25 @@ test('release metadata keeps the existing installation and main update URLs', ()
 // 38.0.0: the live engine is vaft 68.5.7 from ryanbr/TwitchAdSolutions, file vaft/vaft.user.js at commit
 // 74f1248f22a61fcbb559882f93cb60ca25b414e8 (git blob c80fb54fb3bedc72d0b2d0cf8ad3e90607fa6744). Its body after
 // the metadata block hashes to ba3df7aa9b02f23d9a61c0b013a39541039ba888b34d6ea50e48aeb160763abc; the hash below
-// is that same body with two documented changes and nothing else:
+// is that same body with these documented changes and nothing else (each changed line carries "MATTEO12SA"):
 //   1. 38.0.0: the notice line shows the French text;
 //   2. 38.0.1: the buffering monitor reschedules itself through one stored timer, because upstream started an
-//      extra polling chain on every tab return (measured on Twitch: 10 ticks per 6 s became 110 after 10 returns).
+//      extra polling chain on every tab return (measured on Twitch: 10 ticks per 6 s became 110 after 10 returns);
+//   3. 38.0.2: a playlist-processing error rejects the worker request instead of leaving it pending;
+//   4. 38.0.2: the page fetch hook no longer assumes a GQL call carries headers;
+//   5. 38.0.2: after a reload and on tab return, the engine acts on the player's own video, and its drift
+//      correction, auto-resume and separate-ad-video hiding apply to live content only;
+//   6. 38.0.2: the ad-completion spoofing (off by default upstream, never executed here) is removed.
 test('live engine is upstream vaft 68.5.7 with only the documented changes', () => {
     const body = legacySource.slice(legacySource.indexOf('// ==/UserScript==') + '// ==/UserScript=='.length).trim();
     assert.equal(crypto.createHash('sha256').update(body).digest('hex'),
-        '09d1dc79592eb686802f5e1b97edd6d1f8eea64006f100e312744c47a7351ce2');
+        '609d761ac6e6b2cec54e0138234384725ce5008f9c1f6f695dd69b4736452d85');
+    assert.equal(body.split('return processAfter(response);').length, 3);
+    assert.doesNotMatch(body, /^\s*processAfter\(response\);/m);
+    assert.ok(body.includes("if (url.includes('gql') && init && init.headers) {"));
+    assert.ok(body.includes('if (adHost && vid !== primaryVideo && playerBufferState.isLive) {'));
+    assert.doesNotMatch(body, /videos\[0\]/);
+    assert.doesNotMatch(body, /notifyAdComplete|DisableAdSpoofing|SpoofedAdIds|ClientSideAdEventHandling/);
     assert.equal(body.split("adBlockDiv.P.textContent = 'Pub bloquée';").length, 2);
     assert.equal(body.split('adBlockDiv.P.textContent = ').length, 2);
     // Exactly one place schedules the monitor, and it cancels the pending tick first.

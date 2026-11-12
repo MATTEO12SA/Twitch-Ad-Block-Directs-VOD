@@ -22,7 +22,7 @@ test('release metadata keeps the existing installation and main update URLs', ()
     const metadata = name => source.match(new RegExp('^// @' + name + '\\s+(.+)$', 'm'))?.[1].trim();
     assert.equal(metadata('name'), 'TwitchAD VAFT MATTEO12SA');
     assert.equal(metadata('namespace'), 'https://github.com/MATTEO12SA/twitch-vaft-violentmonkey');
-    assert.equal(metadata('version'), '38.0.0');
+    assert.equal(metadata('version'), '38.0.1');
     assert.equal(metadata('updateURL'), 'https://raw.githubusercontent.com/MATTEO12SA/Twitch-Ad-Block-Directs-VOD/main/vaft.user.js');
     assert.equal(metadata('downloadURL'), metadata('updateURL'));
     assert.equal(metadata('run-at'), 'document-start');
@@ -35,13 +35,20 @@ test('release metadata keeps the existing installation and main update URLs', ()
 // 38.0.0: the live engine is vaft 68.5.7 from ryanbr/TwitchAdSolutions, file vaft/vaft.user.js at commit
 // 74f1248f22a61fcbb559882f93cb60ca25b414e8 (git blob c80fb54fb3bedc72d0b2d0cf8ad3e90607fa6744). Its body after
 // the metadata block hashes to ba3df7aa9b02f23d9a61c0b013a39541039ba888b34d6ea50e48aeb160763abc; the hash below
-// is that same body with the notice line replaced by the French text, and nothing else.
-test('live engine is upstream vaft 68.5.7 with only the notice text changed', () => {
+// is that same body with two documented changes and nothing else:
+//   1. 38.0.0: the notice line shows the French text;
+//   2. 38.0.1: the buffering monitor reschedules itself through one stored timer, because upstream started an
+//      extra polling chain on every tab return (measured on Twitch: 10 ticks per 6 s became 110 after 10 returns).
+test('live engine is upstream vaft 68.5.7 with only the documented changes', () => {
     const body = legacySource.slice(legacySource.indexOf('// ==/UserScript==') + '// ==/UserScript=='.length).trim();
     assert.equal(crypto.createHash('sha256').update(body).digest('hex'),
-        '53c6d2c3a3705c472e6b285121b9bf6bb8707b5779a054782ebe6dc88cc0bf2e');
+        '09d1dc79592eb686802f5e1b97edd6d1f8eea64006f100e312744c47a7351ce2');
     assert.equal(body.split("adBlockDiv.P.textContent = 'Pub bloquée';").length, 2);
     assert.equal(body.split('adBlockDiv.P.textContent = ').length, 2);
+    // Exactly one place schedules the monitor, and it cancels the pending tick first.
+    assert.equal(body.split('setTimeout(monitorPlayerBuffering, nextDelay)').length, 2);
+    assert.ok(body.includes('clearTimeout(monitorPlayerBuffering.timer);\n' +
+        '        monitorPlayerBuffering.timer = setTimeout(monitorPlayerBuffering, nextDelay);'));
 });
 
 test('VOD module differs from the tested add-on only by its documented changes', () => {

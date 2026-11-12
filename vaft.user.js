@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         TwitchAD VAFT MATTEO12SA
 // @namespace    https://github.com/MATTEO12SA/twitch-vaft-violentmonkey
-// @version      38.0.0
+// @version      38.0.1
 // @description  Bloque les publicités Twitch en direct (moteur vaft 68.5.7 de ryanbr/TwitchAdSolutions) et filtre les pré-rolls et mid-rolls VOD VAST pris en charge.
 // @updateURL    https://raw.githubusercontent.com/MATTEO12SA/Twitch-Ad-Block-Directs-VOD/main/vaft.user.js
 // @downloadURL  https://raw.githubusercontent.com/MATTEO12SA/Twitch-Ad-Block-Directs-VOD/main/vaft.user.js
@@ -2343,7 +2343,9 @@
         // background media deprioritization is browser-level. Negligible cost — only polls faster while hidden + in-break.
         const shouldThrottle = typeof document !== 'undefined' && document.hidden && !document.pictureInPictureElement && !playerBufferState.inAdBreak;
         const nextDelay = shouldThrottle ? PlayerBufferingDelay * 3 : PlayerBufferingDelay;
-        setTimeout(monitorPlayerBuffering, nextDelay);
+        // MATTEO12SA: keep a single polling chain. Upstream starts one more chain on every tab return (the forced tick above), so the checks pile up during a session.
+        clearTimeout(monitorPlayerBuffering.timer);
+        monitorPlayerBuffering.timer = setTimeout(monitorPlayerBuffering, nextDelay);
     }
     // document.querySelector('video') returns the first <video> in the DOM, which since
     // July 2026 can be a separate Twitch ad element beside the player or in chat (#249).

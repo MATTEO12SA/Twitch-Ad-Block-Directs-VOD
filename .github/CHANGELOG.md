@@ -1,5 +1,13 @@
 # Journal des versions
 
+## 38.0.1 — 12 novembre 2026 (candidate de test, branche `test-38.0.0-moteur-directs`)
+
+- **Correction d'un défaut du moteur d'origine** : à chaque retour sur l'onglet Twitch, la surveillance du lecteur lançait une boucle supplémentaire sans arrêter la précédente. Mesuré sur Twitch : 10 passages en 6 secondes au départ, 110 après 10 retours sur l'onglet. La 37.0.8 n'avait pas ce défaut.
+- Effet possible sur une longue session : charge du processeur croissante et fausses détections de blocage, puisque plusieurs boucles comparent l'état du lecteur à quelques millisecondes d'intervalle.
+- Correction : la surveillance garde un seul minuteur et annule le précédent avant de se reprogrammer (deux lignes). Après correction : 10 passages en 6 secondes, même après 30 retours sur l'onglet.
+- Le moteur diffère maintenant du fichier de ryanbr par deux changements documentés : le texte du bandeau et cette correction. Le module VOD est inchangé.
+- Validation : 86 tests Node, 128 scénarios natifs Chrome/Edge, puis essais réels sur Twitch (direct avec coupure simulée, VOD) sans erreur.
+
 ## 38.0.0 — 12 novembre 2026 (candidate de test, branche `test-38.0.0-moteur-directs`)
 
 - **Nouveau moteur des directs** : celui de vaft 68.5.7 du fork [ryanbr/TwitchAdSolutions](https://github.com/ryanbr/TwitchAdSolutions), fichier `vaft/vaft.user.js` au commit `74f1248f22a61fcbb559882f93cb60ca25b414e8`, repris tel quel. Une seule ligne diffère : le bandeau affiche « Pub bloquée ».

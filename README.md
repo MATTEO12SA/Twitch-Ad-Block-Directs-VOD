@@ -1,6 +1,6 @@
 # Twitch Ad Block — Directs & VOD
 
-**Par MATTEO12SA · Pour Violentmonkey · Version 38.0.0**
+**Par MATTEO12SA · Pour Violentmonkey · Version 38.0.1**
 
 Un userscript pour bloquer les publicités des directs Twitch avec VAFT et filtrer certains formats publicitaires vidéo avant et pendant les rediffusions.
 
@@ -11,7 +11,7 @@ Un userscript pour bloquer les publicités des directs Twitch avec VAFT et filtr
 1. Installer [Violentmonkey](https://violentmonkey.github.io/get-it/).
 2. Garder une seule version de VAFT active. Désactiver les anciens scripts TwitchAdSolutions et l'ancien complément **VOD VAST - test** s'il est encore installé.
 3. Cliquer sur **Installer ou mettre à jour le script**, puis confirmer dans Violentmonkey.
-4. Vérifier la version **38.0.0**, puis recharger Twitch.
+4. Vérifier la version **38.0.1**, puis recharger Twitch.
 
 Si le lien affiche uniquement du code, copier son contenu dans l'éditeur de l'entrée existante **TwitchAD VAFT MATTEO12SA**, remplacer l'ancien code, enregistrer puis recharger Twitch. Le nom et le namespace restent identiques pour conserver cette entrée lors des mises à jour.
 
@@ -19,7 +19,7 @@ Si le lien affiche uniquement du code, copier son contenu dans l'éditeur de l'e
 
 ## Ce qui est pris en charge
 
-- **Directs :** moteur vaft 68.5.7 du fork [ryanbr/TwitchAdSolutions](https://github.com/ryanbr/TwitchAdSolutions), repris tel quel, avec le bandeau « Pub bloquée ». Il cherche d'abord un flux de secours en qualité source et garde le 360p en dernier recours.
+- **Directs :** moteur vaft 68.5.7 du fork [ryanbr/TwitchAdSolutions](https://github.com/ryanbr/TwitchAdSolutions), repris avec deux changements documentés (bandeau « Pub bloquée », correction de la boucle de surveillance). Il cherche d'abord un flux de secours en qualité source et garde le 360p en dernier recours.
 - **Rediffusions et highlights :** filtrage ciblé des demandes VAST 3 de pré-roll et de mid-roll, sans bandeau supplémentaire. Depuis la 37.0.8, il s'applique aussi aux highlights et aux rediffusions lancées sur la page d'une chaîne.
 - **Limites :** les autres formats et les publicités fixes affichées à la pause ne sont pas ciblés par l'ajout VOD. Certaines publicités peuvent encore passer.
 

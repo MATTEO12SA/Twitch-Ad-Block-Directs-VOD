@@ -1,5 +1,13 @@
 # Validation et contribution
 
+## Version 38.0.1 — 12 novembre 2026 (candidate de test)
+
+- Relecture complète du script 38.0.0. Défaut trouvé dans le moteur d'origine : `monitorPlayerBuffering` se reprogramme sans condition, et l'écouteur `visibilitychange` l'appelle aussi directement à chaque retour sur l'onglet. Chaque retour ajoute donc une boucle permanente.
+- Mesure sur Twitch (minuteries comptées pendant 6 secondes, Edge sans interface) : 38.0.0 et fichier de ryanbr non modifié, 10 puis 110 après 10 retours simulés ; 37.0.8, 10 puis 10 ; 38.0.1, 10 puis 10, y compris après 30 retours.
+- Correction : `clearTimeout(monitorPlayerBuffering.timer)` avant de reprogrammer, et l'identifiant du minuteur est conservé.
+- Le corps du moteur a maintenant pour SHA-256 `09d1dc79592eb686802f5e1b97edd6d1f8eea64006f100e312744c47a7351ce2`. Par rapport au fichier de ryanbr : la ligne du bandeau est remplacée, et la ligne `setTimeout(monitorPlayerBuffering, nextDelay);` est remplacée par trois lignes (un commentaire et la correction).
+- 86 tests Node et 128 scénarios natifs réussis. Essais réels refaits avec la 38.0.1 : direct avec coupure simulée (720p continu, reprise après rechargement) et VOD (demande publicitaire remplacée), sans erreur.
+
 ## Version 38.0.0 — 12 novembre 2026 (candidate de test)
 
 - Base : 37.0.8 (commit `f180cd1`).

@@ -1,6 +1,6 @@
 # Journal des versions
 
-## 37.0.8 — 12 novembre 2026 (candidate de test, branche `test-37.0.8-vod`)
+## 37.0.8 — 12 novembre 2026
 
 - Deux demandes de pré-roll VOD observées sur Twitch le 12 novembre 2026 échappaient à la 37.0.7, alors qu'elles ont le format déjà pris en charge :
   - **highlight** : `pj.v` vaut `HIGHLIGHT` au lieu de `ARCHIVE` ;
@@ -9,7 +9,7 @@
 - Les autres conditions sont conservées : XHR GET, adresse exacte, VAST 3, placement `preroll` ou `midroll`, `pbid=twitch`, `csai` / `web_csai`, emplacement vidéo unique, paramètres non ambigus.
 - Restent intacts : les contenus `LIVE`, les types non observés (`UPLOAD` par exemple), les demandes qui nomment une autre page, les requêtes `fetch /ads` et les bannières.
 - Aucun changement au moteur des directs, aux Workers, aux qualités ni au lecteur. Nom, namespace et URL de mise à jour conservés.
-- Validation : 86 tests Node et 124 scénarios natifs simulés Chrome/Edge réussis. Le blocage réel sur Twitch reste à confirmer.
+- Validation : 86 tests Node et 124 scénarios natifs simulés Chrome/Edge réussis. Essai de l'utilisateur sur Twitch concluant le 12 novembre 2026.
 
 ## 37.0.7 — 9 novembre 2026
 

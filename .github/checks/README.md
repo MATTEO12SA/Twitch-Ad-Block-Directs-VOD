@@ -1,13 +1,14 @@
 # Validation et contribution
 
-## Version 37.0.8 — 12 novembre 2026 (candidate de test)
+## Version 37.0.8 — 12 novembre 2026
 
+- Essai de l'utilisateur sur Twitch avec la version de test : concluant le 12 novembre 2026.
 - Base : commit `1c57bc3acf7d5bb174be81fdd751db291972aab9` (37.0.7).
 - Observation sur Twitch, navigateur sans extension ni compte, chaîne publique : six demandes de pré-roll relevées. Quatre correspondent au filtre 37.0.7 (chargement direct et navigation interne vers `/videos/<id>`). Deux lui échappent : un highlight (`pj.v = HIGHLIGHT`) et une rediffusion lancée sur la page d'une chaîne hors ligne (page et `u` = `/<chaîne>`). Tous les autres paramètres sont identiques.
 - Avant la correction : les six nouveaux tests positifs échouent sur le code 37.0.7. Après : syntaxe valide, **86 tests Node réussis**.
 - **124 scénarios natifs réussis** : 31 par placement et par navigateur (Edge et Chrome installés, Playwright 1.65.0). Le compteur Node est de **128** avec les quatre groupes parents.
 - Le hash du moteur direct reste identique. Le test de comparaison avec l'ancien complément liste chaque différence autorisée.
-- Non couvert : aucune publicité Twitch réelle n'a été bloquée pendant ces essais. Les vidéos de type `UPLOAD` et les mid-rolls demandés pendant la navigation avec le mini-lecteur n'ont pas été observés.
+- Non couvert par les essais automatisés : aucune publicité Twitch réelle n'y est bloquée. Les vidéos de type `UPLOAD` et les mid-rolls demandés pendant la navigation avec le mini-lecteur n'ont pas été observés.
 
 ## Version 37.0.7 — 9 novembre 2026
 

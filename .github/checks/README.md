@@ -8,7 +8,13 @@
 - Pour reproduire : télécharger ce fichier à ce commit, retirer le bloc de métadonnées, remplacer la ligne `adBlockDiv.P.textContent = …` par celle du dépôt, normaliser les fins de ligne en LF, puis calculer le SHA-256.
 - **86 tests Node réussis** et **128 scénarios natifs réussis** (32 par placement et par navigateur, Edge et Chrome) ; le compteur Node est de 132 avec les quatre groupes parents.
 - Le test de coexistence est adapté : le moteur ajoute son compteur de requêtes autour de `XMLHttpRequest.open`, donc la fonction change quand l'ancien complément démarre en premier ; le test vérifie que le module VOD intégré ne s'empile pas.
-- Non couvert : le blocage des publicités en direct, les flux de secours, les rechargements du lecteur et la cohabitation réelle avec TwitchNoSub. Ces points demandent un essai sur Twitch.
+- Essais réels sur Twitch le 12 novembre 2026 : Edge sans interface, son coupé, profil vierge, sans compte, script injecté au démarrage du document. Aucune erreur du script dans aucun essai.
+  - Direct, 75 s : moteur chargé, Worker instrumenté, lecture continue en 720p.
+  - Direct avec coupure simulée (`simulateAds(1)`, 36 s) : bandeau « Pub bloquée », secours `site`, lecture continue en 720p, rechargement en fin de coupure puis reprise en 720p. Sur la même chaîne, la 37.0.8 utilise `popout` et repasse brièvement en 360p après son rechargement.
+  - Direct, pire cas simulé (`simulateAds(5)`, tous les secours en qualité source refusés) : secours `autoplay` en 360p sans interruption, puis retour en 720p après le rechargement de fin de coupure.
+  - VOD, highlight et rediffusion sur page de chaîne : la demande publicitaire est remplacée par la réponse locale et la vidéo démarre. Témoin sans script : la demande part vers `edge.ads.twitch.tv`.
+  - Avec le userscript TwitchNoSub 1.2.1 ajouté, sur un direct et sur une VOD publique : chaîne de Workers fonctionnelle, lecture normale.
+- Non couvert : une vraie coupure publicitaire en direct (aucune n'est survenue), les chaînes en 1440p HEVC, une VOD réservée aux abonnés lue avec TwitchNoSub, les longues sessions. Ces points demandent l'essai de l'utilisateur.
 
 ## Version 37.0.8 — 12 novembre 2026
 

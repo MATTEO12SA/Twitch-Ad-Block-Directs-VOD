@@ -1,5 +1,15 @@
 # Validation et contribution
 
+## Version 38.0.0 — 12 novembre 2026 (candidate de test)
+
+- Base : 37.0.8 (commit `f180cd1`).
+- Moteur des directs : `vaft/vaft.user.js` de ryanbr/TwitchAdSolutions au commit `74f1248f22a61fcbb559882f93cb60ca25b414e8` (blob git `c80fb54fb3bedc72d0b2d0cf8ad3e90607fa6744`, version 68.5.7). Le corps du fichier après le bloc de métadonnées a pour SHA-256 `ba3df7aa9b02f23d9a61c0b013a39541039ba888b34d6ea50e48aeb160763abc`.
+- Une seule ligne est modifiée (texte du bandeau). Le corps obtenu a pour SHA-256 `53c6d2c3a3705c472e6b285121b9bf6bb8707b5779a054782ebe6dc88cc0bf2e` ; le test « live engine is upstream vaft 68.5.7 with only the notice text changed » le vérifie.
+- Pour reproduire : télécharger ce fichier à ce commit, retirer le bloc de métadonnées, remplacer la ligne `adBlockDiv.P.textContent = …` par celle du dépôt, normaliser les fins de ligne en LF, puis calculer le SHA-256.
+- **86 tests Node réussis** et **128 scénarios natifs réussis** (32 par placement et par navigateur, Edge et Chrome) ; le compteur Node est de 132 avec les quatre groupes parents.
+- Le test de coexistence est adapté : le moteur ajoute son compteur de requêtes autour de `XMLHttpRequest.open`, donc la fonction change quand l'ancien complément démarre en premier ; le test vérifie que le module VOD intégré ne s'empile pas.
+- Non couvert : le blocage des publicités en direct, les flux de secours, les rechargements du lecteur et la cohabitation réelle avec TwitchNoSub. Ces points demandent un essai sur Twitch.
+
 ## Version 37.0.8 — 12 novembre 2026
 
 - Essai de l'utilisateur sur Twitch avec la version de test : concluant le 12 novembre 2026.

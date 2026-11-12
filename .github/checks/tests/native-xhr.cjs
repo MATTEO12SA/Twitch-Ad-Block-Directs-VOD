@@ -73,6 +73,16 @@ for (const [name, executablePath] of browsers) {
             }, { url: makeAdUrl(), ...options });
         }
 
+        await t.test('live engine starts in the same page as the VOD module', async () => {
+            const state = await page.evaluate(() => ({
+                engine: window.twitchAdSolutionsVersion,
+                simulate: typeof window.simulateAds,
+                reload: typeof window.reloadTwitchPlayer,
+                vodModule: window[Symbol.for('MATTEO12SA.vaft.vodVastTest')]
+            }));
+            assert.deepEqual(state, { engine: 93, simulate: 'function', reload: 'function', vodModule: true });
+        });
+
         await t.test('captured shape returns native 200 XML without an external request', async () => {
             const count = networkRequests.length;
             const result = await request();
@@ -258,7 +268,7 @@ for (const [name, executablePath] of browsers) {
             ['companion then full userscript', addonSource, source],
             ['full userscript then companion', source, addonSource]
         ]) {
-            await t.test(`pre-roll coexistence uses one native XHR wrapper with ${order}`, async () => {
+            await t.test(`pre-roll coexistence installs one VOD wrapper with ${order}`, async () => {
                 const isolated = await browser.newContext({ serviceWorkers: 'block' });
                 try {
                     let externalRequests = 0;
@@ -273,13 +283,23 @@ for (const [name, executablePath] of browsers) {
                     await isolatedPage.goto('https://www.twitch.tv/videos/123456789');
                     const result = await isolatedPage.evaluate(url => new Promise(resolve => {
                         const sameWrapper = window.__testOpen === XMLHttpRequest.prototype.open;
+                        // The real source, even when the live engine masks its own hook as native.
+                        const topIsVodWrapper = Function.prototype.toString.call(XMLHttpRequest.prototype.open)
+                            .includes('isCapturedVodPreroll');
                         const xhr = new XMLHttpRequest();
                         xhr.open('GET', url);
-                        xhr.onloadend = () => resolve({ sameWrapper, status: xhr.status,
+                        xhr.onloadend = () => resolve({ sameWrapper, topIsVodWrapper, status: xhr.status,
                             body: xhr.responseText, responseUrl: xhr.responseURL });
                         xhr.send();
                     }), makeFixtureAdUrl());
-                    assert.equal(result.sameWrapper, true);
+                    if (second === addonSource) {
+                        // The companion starts last and finds the guard: it adds nothing.
+                        assert.equal(result.sameWrapper, true);
+                    } else {
+                        // Since 38.0.0 the live engine adds its own ad-request counter around open, so the
+                        // wrapper changes; the integrated VOD module must still not stack on the companion.
+                        assert.equal(result.topIsVodWrapper, false);
+                    }
                     assert.equal(result.status, 200);
                     assert.equal(result.body, '<VAST version="3.0"></VAST>');
                     assert.match(result.responseUrl, /^data:/);

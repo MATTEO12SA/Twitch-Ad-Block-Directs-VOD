@@ -22,7 +22,7 @@ test('release metadata keeps the existing installation and main update URLs', ()
     const metadata = name => source.match(new RegExp('^// @' + name + '\\s+(.+)$', 'm'))?.[1].trim();
     assert.equal(metadata('name'), 'TwitchAD VAFT MATTEO12SA');
     assert.equal(metadata('namespace'), 'https://github.com/MATTEO12SA/twitch-vaft-violentmonkey');
-    assert.equal(metadata('version'), '37.0.8');
+    assert.equal(metadata('version'), '38.0.0');
     assert.equal(metadata('updateURL'), 'https://raw.githubusercontent.com/MATTEO12SA/Twitch-Ad-Block-Directs-VOD/main/vaft.user.js');
     assert.equal(metadata('downloadURL'), metadata('updateURL'));
     assert.equal(metadata('run-at'), 'document-start');
@@ -32,10 +32,16 @@ test('release metadata keeps the existing installation and main update URLs', ()
     new vm.Script(source);
 });
 
-test('legacy live engine is byte-identical to 37.0.3 after normalizing line endings', () => {
+// 38.0.0: the live engine is vaft 68.5.7 from ryanbr/TwitchAdSolutions, file vaft/vaft.user.js at commit
+// 74f1248f22a61fcbb559882f93cb60ca25b414e8 (git blob c80fb54fb3bedc72d0b2d0cf8ad3e90607fa6744). Its body after
+// the metadata block hashes to ba3df7aa9b02f23d9a61c0b013a39541039ba888b34d6ea50e48aeb160763abc; the hash below
+// is that same body with the notice line replaced by the French text, and nothing else.
+test('live engine is upstream vaft 68.5.7 with only the notice text changed', () => {
     const body = legacySource.slice(legacySource.indexOf('// ==/UserScript==') + '// ==/UserScript=='.length).trim();
     assert.equal(crypto.createHash('sha256').update(body).digest('hex'),
-        'c8ccd30292db9b7761d29489527a90efcafc5c7a02b95cda26ce0cbffe7003af');
+        '53c6d2c3a3705c472e6b285121b9bf6bb8707b5779a054782ebe6dc88cc0bf2e');
+    assert.equal(body.split("adBlockDiv.P.textContent = 'Pub bloquée';").length, 2);
+    assert.equal(body.split('adBlockDiv.P.textContent = ').length, 2);
 });
 
 test('VOD module differs from the tested add-on only by its documented changes', () => {

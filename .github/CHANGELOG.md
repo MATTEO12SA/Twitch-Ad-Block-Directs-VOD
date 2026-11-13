@@ -1,5 +1,16 @@
 # Journal des versions
 
+## 38.0.3 — 13 novembre 2026
+
+Console du navigateur (F12) uniquement. Le blocage des publicités n'est pas modifié.
+
+- **Balise :** chaque ligne écrite par le script commence par une balise violette `MATTEO12SA`, y compris les lignes venant du Worker du lecteur.
+- **Console calme par défaut :** seules les lignes utiles s'affichent. Le journal technique (116 messages) reste disponible avec la commande `matteo12saDebug()` dans la console, et `matteo12saDebug(false)` revient au mode court. Le choix est conservé d'une page à l'autre.
+- **Lignes en français, toujours affichées :** version chargée, pub détectée, pub bloquée avec le flux de secours utilisé (en vert), passage en 360p faute de flux propre (en orange), fin de la pub avec sa durée, rechargement du lecteur, plantage du lecteur, et présence d'un autre script VAFT.
+- **Rediffusions :** une ligne « Pub VOD bloquée » à chaque demande publicitaire remplacée, avec le type (pré-roll ou mid-roll) et un compteur. Twitch envoie souvent deux demandes au lancement d'une VOD. La logique du filtre est inchangée.
+- Le texte est transmis à la console comme valeur et non comme format : un `%` dans un message ne peut pas le déformer.
+- Validation : 89 tests Node (dont 3 nouveaux sur la console), 128 scénarios natifs Chrome/Edge, puis essais réels sur Twitch : console par défaut et journal détaillé activé en cours de route pendant une coupure simulée, ligne « Pub VOD bloquée » sur une VOD.
+
 ## 38.0.2 — 12 novembre 2026
 
 Corrections issues de la relecture complète du moteur, sans changement du blocage lui-même :

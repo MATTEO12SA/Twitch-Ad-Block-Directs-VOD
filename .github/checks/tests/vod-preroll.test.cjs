@@ -14,15 +14,18 @@ function realm(href = 'https://www.twitch.tv/videos/123456789', framed = false) 
     const window = { location: new URL(href) };
     window.self = window;
     window.top = framed ? {} : window;
-    const context = vm.createContext({ window, URL, XMLHttpRequest: Xhr });
-    return { context, window, Xhr, calls, nativeOpen, run: code => vm.runInContext(code, context) };
+    const logs = [];
+    const context = vm.createContext({ window, URL, XMLHttpRequest: Xhr, console: { log: (...args) => logs.push(args) } });
+    return { context, window, Xhr, calls, logs, nativeOpen, run: code => vm.runInContext(code, context) };
 }
 
 test('release metadata keeps the existing installation and main update URLs', () => {
     const metadata = name => source.match(new RegExp('^// @' + name + '\\s+(.+)$', 'm'))?.[1].trim();
     assert.equal(metadata('name'), 'TwitchAD VAFT MATTEO12SA');
     assert.equal(metadata('namespace'), 'https://github.com/MATTEO12SA/twitch-vaft-violentmonkey');
-    assert.equal(metadata('version'), '38.0.2');
+    assert.equal(metadata('version'), '38.0.3');
+    // The version printed in the console must follow the published one.
+    assert.equal(source.match(/const MATTEO12SA_VERSION = '([^']+)';/)?.[1], metadata('version'));
     assert.equal(metadata('updateURL'), 'https://raw.githubusercontent.com/MATTEO12SA/Twitch-Ad-Block-Directs-VOD/main/vaft.user.js');
     assert.equal(metadata('downloadURL'), metadata('updateURL'));
     assert.equal(metadata('run-at'), 'document-start');
@@ -43,11 +46,16 @@ test('release metadata keeps the existing installation and main update URLs', ()
 //   4. 38.0.2: the page fetch hook no longer assumes a GQL call carries headers;
 //   5. 38.0.2: after a reload and on tab return, the engine acts on the player's own video, and its drift
 //      correction, auto-resume and separate-ad-video hiding apply to live content only;
-//   6. 38.0.2: the ad-completion spoofing (off by default upstream, never executed here) is removed.
+//   6. 38.0.2: the ad-completion spoofing (off by default upstream, never executed here) is removed;
+//   7. 38.0.3: every console line goes through vaftLog (coloured MATTEO12SA tag, detailed journal off by
+//      default, switched with matteo12saDebug()), and eight always-visible lines in French are added.
 test('live engine is upstream vaft 68.5.7 with only the documented changes', () => {
     const body = legacySource.slice(legacySource.indexOf('// ==/UserScript==') + '// ==/UserScript=='.length).trim();
     assert.equal(crypto.createHash('sha256').update(body).digest('hex'),
-        '609d761ac6e6b2cec54e0138234384725ce5008f9c1f6f695dd69b4736452d85');
+        '3588813f5c60ea52064813ee0dc1bd475e08a076be1c8776aa1349b1c31740f5');
+    // No direct console call is left in the engine: everything is tagged.
+    assert.doesNotMatch(body, /console\.(log|error|warn|info|debug)\(/);
+    assert.ok(body.includes('${vaftLog.toString()}'));
     assert.equal(body.split('return processAfter(response);').length, 3);
     assert.doesNotMatch(body, /^\s*processAfter\(response\);/m);
     assert.ok(body.includes("if (url.includes('gql') && init && init.headers) {"));
@@ -81,7 +89,20 @@ test('VOD module differs from the tested add-on only by its documented changes',
         ["            if (getVodId(new URL(params.get('u'))) !== vodId) return false;\n",
             "            if (getTwitchPagePath(new URL(params.get('u'))) !== pagePath) return false;\n"],
         // 37.0.8: highlights carry the same request with another content type.
-        ["details?.v === 'ARCHIVE'", "['ARCHIVE', 'HIGHLIGHT'].includes(details?.v)"]
+        ["details?.v === 'ARCHIVE'", "['ARCHIVE', 'HIGHLIGHT'].includes(details?.v)"],
+        // 38.0.3: one tagged console line per blocked request. The interception itself is untouched.
+        ["    const originalOpen = XMLHttpRequest.prototype.open;\n",
+            "    // One console line per blocked request, with the same tag as the live engine.\n" +
+            "    let blockedRequests = 0;\n" +
+            "    function reportBlocked(url) {\n" +
+            "        try {\n" +
+            "            const placement = new URL(url, window.location.href).searchParams.get('bp') === 'midroll' ? 'mid-roll' : 'pré-roll';\n" +
+            "            console.log('%cMATTEO12SA%c %s', 'background:#9146FF;color:#fff;font-weight:bold;padding:1px 6px;border-radius:3px',\n" +
+            "                'color:#22a06b', 'Pub VOD bloquée (' + placement + '), demande n° ' + (++blockedRequests));\n" +
+            "        } catch {}\n" +
+            "    }\n\n" +
+            "    const originalOpen = XMLHttpRequest.prototype.open;\n"],
+        ["        args[1] = noAdUrl;\n", "        args[1] = noAdUrl;\n        reportBlocked(url);\n"]
     ];
     let expected = addonSource;
     for (const [original, candidate] of changes) {
@@ -159,6 +180,60 @@ for (const href of ['https://www.twitch.tv/fixture_channel', 'https://www.twitch
         assert.equal(r.calls[0].args[1], makeAdUrl());
     });
 }
+
+// 38.0.3: console output.
+test('a blocked VOD request prints one tagged line, an untouched request prints nothing', () => {
+    const r = realm(); r.run(vodSource);
+    new r.Xhr().open('GET', makeAdUrl({ rt: 'json' }));
+    assert.equal(r.logs.length, 0);
+    new r.Xhr().open('GET', makeAdUrl());
+    new r.Xhr().open('GET', makeAdUrl({ bp: 'midroll' }));
+    assert.deepEqual(r.logs.map(args => [args[0], args[3]]), [
+        ['%cMATTEO12SA%c %s', 'Pub VOD bloquée (pré-roll), demande n° 1'],
+        ['%cMATTEO12SA%c %s', 'Pub VOD bloquée (mid-roll), demande n° 2']
+    ]);
+});
+
+test('a console that cannot log never prevents the VOD interception', () => {
+    const r = realm();
+    r.context.console = { log() { throw new Error('console unavailable'); } };
+    r.run(vodSource);
+    new r.Xhr().open('GET', makeAdUrl());
+    assert.ok(r.calls[0].args[1].startsWith('data:'));
+});
+
+test('engine logger: tag on every line, detailed journal hidden until it is switched on', () => {
+    const fnSource = legacySource.match(/\n    function vaftLog\(text, level\) \{\n[\s\S]*?\n    \}\n/)?.[0];
+    assert.ok(fnSource, 'vaftLog must be a plain function declaration');
+    const make = stored => {
+        const out = [];
+        const context = vm.createContext({
+            console: { log: (...a) => out.push(['log', ...a]), error: (...a) => out.push(['error', ...a]) },
+            localStorage: { getItem: () => stored }
+        });
+        vm.runInContext(fnSource, context);
+        return { out, log: (...a) => vm.runInContext('vaftLog', context)(...a), ctx: context };
+    };
+    const quiet = make(null);
+    quiet.log('[AD DEBUG] detail line');
+    quiet.log('[AD DEBUG] Pub bloquée', 'ok');
+    quiet.log('Attention', 'warn');
+    quiet.log('Cassé', 'error');
+    assert.deepEqual(quiet.out.map(l => [l[0], l[1], l[3], l[4]]), [
+        ['log', '%cMATTEO12SA%c %s', 'color:#22a06b', 'Pub bloquée'],
+        ['log', '%cMATTEO12SA%c %s', 'color:#d97706', 'Attention'],
+        ['error', '%cMATTEO12SA%c %s', '', 'Cassé']
+    ]);
+    assert.ok(quiet.out.every(l => l[2].startsWith('background:#9146FF')));
+    // The text is passed as a %s value, so a "%" inside it is never read as a format.
+    const detailed = make('1');
+    detailed.log('[AD DEBUG] 100%c done', { extra: true });
+    assert.deepEqual(detailed.out[0].slice(1), ['%cMATTEO12SA%c %s', detailed.out[0][2], 'color:#888', '100%c done', { extra: true }]);
+    // In the worker there is no localStorage: the journal stays off instead of throwing.
+    const worker = vm.createContext({ console: { log() { throw new Error('should stay silent'); } } });
+    vm.runInContext(fnSource, worker);
+    vm.runInContext("vaftLog('detail')", worker);
+});
 
 // 37.0.8: shapes observed on Twitch on 12 November 2026 that 37.0.7 let through.
 const channelPage = 'https://www.twitch.tv/fixture_channel';

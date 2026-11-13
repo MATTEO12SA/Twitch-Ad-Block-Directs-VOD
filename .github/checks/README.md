@@ -1,5 +1,16 @@
 # Validation et contribution
 
+## Version 38.0.3 — 13 novembre 2026
+
+- Base : 38.0.2 (commit `acf19e4`). Changement limité à la console.
+- Moteur : les 116 appels `console.log` et les 2 `console.error` passent par `vaftLog`, déclarée dans le moteur et transmise au Worker. Huit lignes toujours affichées sont ajoutées, ainsi que la commande `matteo12saDebug()` et le message `SetDebugLog` vers le Worker. Corps du moteur : SHA-256 `3588813f5c60ea52064813ee0dc1bd475e08a076be1c8776aa1349b1c31740f5`.
+- Module VOD : une fonction `reportBlocked` et son appel après le remplacement de l'adresse. Un test vérifie qu'une console indisponible n'empêche pas l'interception.
+- **89 tests Node réussis** (3 nouveaux : ligne VOD, console indisponible, comportement de `vaftLog`) et **128 scénarios natifs réussis**.
+- Essais réels sur Twitch, sans erreur :
+  - console par défaut pendant une coupure simulée : version chargée, pub détectée, pub bloquée avec le flux `site`, fin de la pub, rechargement du lecteur, et rien d'autre ;
+  - `matteo12saDebug()` appelée en cours de route : le journal détaillé apparaît, y compris les lignes du Worker ;
+  - VOD : deux lignes « Pub VOD bloquée (pré-roll) » et lecture normale.
+
 ## Version 38.0.2 — 12 novembre 2026
 
 - Vérifications faites juste avant la publication sur `main` :

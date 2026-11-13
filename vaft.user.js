@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         TwitchAD VAFT MATTEO12SA
 // @namespace    https://github.com/MATTEO12SA/twitch-vaft-violentmonkey
-// @version      38.0.4
+// @version      38.0.5
 // @description  Bloque les publicités Twitch en direct (moteur vaft 68.5.7 de ryanbr/TwitchAdSolutions) et filtre les pré-rolls et mid-rolls VOD VAST pris en charge.
 // @updateURL    https://raw.githubusercontent.com/MATTEO12SA/Twitch-Ad-Block-Directs-VOD/main/vaft.user.js
 // @downloadURL  https://raw.githubusercontent.com/MATTEO12SA/Twitch-Ad-Block-Directs-VOD/main/vaft.user.js
@@ -51,7 +51,7 @@
     }
     'use strict';
     const ourTwitchAdSolutionsVersion = 93;// Used to prevent conflicts with outdated versions of the scripts
-    const MATTEO12SA_VERSION = '38.0.4';// MATTEO12SA: shown in the console; a test keeps it equal to @version
+    const MATTEO12SA_VERSION = '38.0.5';// MATTEO12SA: shown in the console; a test keeps it equal to @version
     vaftLog('[AD DEBUG] TwitchAdSolutions vaft v' + ourTwitchAdSolutionsVersion + ' loading');
     if (window.top === window.self) vaftLog('Twitch Ad Block ' + MATTEO12SA_VERSION + ' chargé', 'info');
     if (typeof window.twitchAdSolutionsVersion !== 'undefined' && window.twitchAdSolutionsVersion >= ourTwitchAdSolutionsVersion) {
@@ -267,6 +267,7 @@
     let isActivelyStrippingAds = false;
     let localStorageHookFailed = false;
     const twitchWorkers = [];
+    const hookedTwitchWorkers = new WeakSet();// MATTEO12SA: workers created through the hook, see checkUnhookedPlayerWorker
     let cachedRootNode = null;// Cached #root DOM element (never changes in React SPAs)
     let cachedPlayerRootDiv = null;// Cached .video-player element
     // One-shot flags for overlay-hide logs. Twitch's React tree re-mounts SDA
@@ -509,6 +510,7 @@
                 }
                 twitchWorkers.length = 0;
                 twitchWorkers.push(this);
+                hookedTwitchWorkers.add(this);
                 this.addEventListener('message', (e) => {
                     if (e.data.key == 'UpdateAdBlockBanner') {
                         updateAdblockBanner(e.data);
@@ -1878,6 +1880,66 @@
         inAdBreak: false,
         vaftEverUnmuted: false
     };
+    // MATTEO12SA: late-start recovery, after Helli24/TwitchAdSolutions v68.6.0 and v68.9.0.
+    // A userscript manager does not guarantee document-start. When Twitch created its player worker before the
+    // hook replaced window.Worker, that worker never runs hookWorkerFetch: no ad is detected on the whole page.
+    // The monitor compares the live player's worker with the hooked ones. If it is a stranger after 5 s of
+    // playback: one hard player reload (Twitch then usually builds a new worker through the hook), and if that
+    // is not enough, one page reload, at most once per 10 minutes per tab (sessionStorage), so it cannot loop.
+    // Opt-out of the page reload: localStorage 'matteo12sa_unhookedPageReload' = 'false'.
+    const unhookedWorkerState = { worker: null, firstSeenAt: 0, reloads: 0, gaveUp: false, loggedNoWorkerRef: false };
+    const UnhookedPageReloadKey = 'matteo12sa_unhookedPageReloadAt';
+    function tryUnhookedPageReload() {
+        try {
+            if (localStorage.getItem('matteo12sa_unhookedPageReload') === 'false') return 'désactivé par réglage';
+            const lastAt = parseInt(sessionStorage.getItem(UnhookedPageReloadKey)) || 0;
+            if (Date.now() - lastAt < 10 * 60 * 1000) return 'page déjà rechargée il y a ' + Math.round((Date.now() - lastAt) / 1000) + ' s';
+            sessionStorage.setItem(UnhookedPageReloadKey, String(Date.now()));
+        } catch (err) {
+            return 'stockage indisponible';
+        }
+        vaftLog('Le blocage n\'a pas pu se brancher sur le lecteur : rechargement de la page', 'warn');
+        location.reload();
+        return null;
+    }
+    function checkUnhookedPlayerWorker(player, isLive) {
+        try {
+            const worker = player?.core?.worker;
+            const video = player?.getHTMLVideoElement?.();
+            if (player?.core && !worker && !unhookedWorkerState.loggedNoWorkerRef) {
+                unhookedWorkerState.loggedNoWorkerRef = true;
+                vaftLog('[AD DEBUG] player.core.worker not found — unhooked-worker check inactive');
+            }
+            // Live only: on a VOD the ad filter does not go through the worker, and a reload would move the playhead.
+            if (!isLive || !worker || typeof worker.postMessage !== 'function' || hookedTwitchWorkers.has(worker) ||
+                !video || !video.isConnected || video.readyState < 1 || video.paused || video.ended ||
+                document.hidden || document.pictureInPictureElement || playerBufferState.userPauseIntent) {
+                unhookedWorkerState.worker = null;
+                unhookedWorkerState.firstSeenAt = 0;
+                return;
+            }
+            if (unhookedWorkerState.worker !== worker) {
+                unhookedWorkerState.worker = worker;
+                unhookedWorkerState.firstSeenAt = Date.now();
+                return;
+            }
+            if (Date.now() - unhookedWorkerState.firstSeenAt < 5000) return;
+            if (unhookedWorkerState.reloads >= 1) {
+                if (!unhookedWorkerState.gaveUp) {
+                    unhookedWorkerState.gaveUp = true;
+                    const skipped = tryUnhookedPageReload();
+                    if (skipped) vaftLog('Le blocage n\'est pas actif sur cette page (' + skipped + '). Recharge la page pour l\'activer.', 'warn');
+                }
+                return;
+            }
+            unhookedWorkerState.reloads++;
+            unhookedWorkerState.firstSeenAt = Date.now();
+            vaftLog('Le script a démarré après le lecteur : rechargement du lecteur pour activer le blocage', 'warn');
+            doTwitchPlayerTask(false, true, 'worker-recovery');
+        } catch (err) {
+            vaftLog('[AD DEBUG] Unhooked-worker check failed: ' + err.message);
+        }
+    }
     // Poll the player state to detect and fix buffering caused by ad stream switching
     function monitorPlayerBuffering() {
         // Fresh player lookup every tick (avoids stale ref when Twitch restarts its own player)
@@ -1889,6 +1951,7 @@
                     player: playerAndState.player,
                     state: playerAndState.state
                 };
+                checkUnhookedPlayerWorker(playerAndState.player, playerAndState.state.props?.content?.type === 'live');// MATTEO12SA
                 const video = playerAndState.player.getHTMLVideoElement?.();
                 if (video && !video.__tasIntentHooked) {
                     video.__tasIntentHooked = true;
@@ -2467,7 +2530,7 @@
             vaftLog('[AD DEBUG] Downgraded reload to pause/play to preserve PiP');
             return;
         }
-        if (isReload) {
+        if (isReload && reloadKind !== 'worker-recovery') {// MATTEO12SA: a recovery reload is wanted even when playback looks fine
             // Skip reload if the player is already healthy — avoids disrupting smooth playback.
             // But if we're way behind live edge (e.g. after a long ad break), proceed with reload to reset latency.
             const video = player.getHTMLVideoElement?.();
@@ -2532,14 +2595,14 @@
             // Hard reload for 'early' (mid-break escape — fresh session gets new ad-decision bucket).
             // Soft reload for 'post-ad' (smooth transition, no black screen teardown).
             // Apple touch devices: force soft — a new media instance needs a user tap to resume (black-screen + play icon).
-            const hardReload = reloadKind === 'early' && !iosSoftReload;
+            const hardReload = (reloadKind === 'early' || reloadKind === 'worker-recovery') && !iosSoftReload;// MATTEO12SA: recovery needs a new worker
             // Decoupled from hardReload on purpose. The iOS downgrade below exists to keep the
             // media element user-gesture-blessed, which only requires skipping the new media
             // instance — not the token refresh. An 'early' reload after an autoplay commit
             // depends on refreshAccessToken to leave the autoplay-scoped 360p variant ladder;
             // without it an iOS user stays pinned at 360p, since 'early' is always downgraded
             // here and 'post-ad' is soft by definition, so nothing refreshes the token again.
-            const refreshToken = reloadKind === 'early';
+            const refreshToken = reloadKind === 'early' || reloadKind === 'worker-recovery';
             if (reloadKind === 'early' && iosSoftReload) {
                 vaftLog('[AD DEBUG] iOS/iPadOS: downgrading hard reload to soft — keeps media element user-gesture-blessed (avoids black-screen + play-icon stall); access-token refresh is retained, so Source quality can still be restored. Opt-out: twitchAdSolutions_iosSoftReload=false');
             }

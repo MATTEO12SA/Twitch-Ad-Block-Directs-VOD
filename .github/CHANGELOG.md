@@ -1,5 +1,15 @@
 # Journal des versions
 
+## 38.0.5 — 13 novembre 2026
+
+- **Publicités non bloquées quand le script démarre après le lecteur :** le gestionnaire de userscripts ne garantit pas que le script démarre avant Twitch. Si le lecteur a déjà créé son Worker, le moteur ne peut plus s'y brancher : le script s'affiche comme chargé, mais aucune publicité n'est détectée sur cette page. Recharger la page réglait le problème.
+- Correction : sur un direct en cours de lecture, la surveillance vérifie que le Worker du lecteur est bien passé par le script. Sinon, après 5 secondes, elle recharge le lecteur une fois ; si cela ne suffit pas, elle recharge la page une fois, au plus une fois toutes les 10 minutes par onglet. Même approche que [Helli24/TwitchAdSolutions](https://github.com/Helli24/TwitchAdSolutions) v68.6.0 et v68.9.0.
+- Limité aux directs : sur une VOD, le filtre publicitaire ne passe pas par le Worker et un rechargement déplacerait la lecture. Jamais sur une vidéo en pause ni dans un onglet caché.
+- Console : deux lignes orange annoncent ces rechargements. Si la page a déjà été rechargée récemment, une ligne indique que le blocage n'est pas actif et qu'il faut recharger la page.
+- Pour interdire le rechargement automatique de la page : `localStorage.setItem('matteo12sa_unhookedPageReload', 'false')` dans la console.
+- Validation : 91 tests Node (un nouveau sur toute la séquence), 128 scénarios natifs Chrome/Edge. Sur Twitch, avec un script injecté après le démarrage du lecteur : la 38.0.4 ne détecte pas la coupure simulée ; la 38.0.5 recharge la page, puis détecte et bloque la coupure. En usage normal (direct, direct avec TwitchNoSub, VOD), aucun rechargement de récupération ne se déclenche.
+- Constat pendant les essais : le rechargement du lecteur seul n'a pas suffi à rebrancher le moteur ; c'est le rechargement de la page qui l'a fait.
+
 ## 38.0.4 — 13 novembre 2026
 
 - **Publicités non bloquées après une longue pause :** quand un direct restait en pause plus de 30 minutes, le moteur oubliait ce flux. À la reprise, ses playlists passaient sans filtre et les publicités s'affichaient jusqu'au rechargement de la page.

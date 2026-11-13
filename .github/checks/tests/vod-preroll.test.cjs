@@ -23,7 +23,7 @@ test('release metadata keeps the existing installation and main update URLs', ()
     const metadata = name => source.match(new RegExp('^// @' + name + '\\s+(.+)$', 'm'))?.[1].trim();
     assert.equal(metadata('name'), 'TwitchAD VAFT MATTEO12SA');
     assert.equal(metadata('namespace'), 'https://github.com/MATTEO12SA/twitch-vaft-violentmonkey');
-    assert.equal(metadata('version'), '38.0.4');
+    assert.equal(metadata('version'), '38.0.5');
     // The version printed in the console must follow the published one.
     assert.equal(source.match(/const MATTEO12SA_VERSION = '([^']+)';/)?.[1], metadata('version'));
     assert.equal(metadata('updateURL'), 'https://raw.githubusercontent.com/MATTEO12SA/Twitch-Ad-Block-Directs-VOD/main/vaft.user.js');
@@ -50,11 +50,14 @@ test('release metadata keeps the existing installation and main update URLs', ()
 //   7. 38.0.3: every console line goes through vaftLog (coloured MATTEO12SA tag, detailed journal off by
 //      default, switched with matteo12saDebug()), and eight always-visible lines in French are added;
 //   8. 38.0.4: a stream that is no longer polled is forgotten only while another stream is active, so a paused
-//      player keeps its ad filtering (approach of Helli24/TwitchAdSolutions v68.11.0).
+//      player keeps its ad filtering (approach of Helli24/TwitchAdSolutions v68.11.0);
+//   9. 38.0.5: when the script started after Twitch's player worker, the monitor notices the unhooked worker
+//      on a live stream and recovers: one player reload, then one page reload at most every 10 minutes per tab
+//      (approach of Helli24/TwitchAdSolutions v68.6.0 and v68.9.0).
 test('live engine is upstream vaft 68.5.7 with only the documented changes', () => {
     const body = legacySource.slice(legacySource.indexOf('// ==/UserScript==') + '// ==/UserScript=='.length).trim();
     assert.equal(crypto.createHash('sha256').update(body).digest('hex'),
-        'fbad54fac2db1e66057b118ecc09542c5fe7dcbcb7b7ce418a1ac9bb9f7534af');
+        '9d7ed7ecb21cd2dfb570e5012edb29eea77fe64baf19f96243cc150a1ba20600');
     // No direct console call is left in the engine: everything is tagged.
     assert.doesNotMatch(body, /console\.(log|error|warn|info|debug)\(/);
     assert.ok(body.includes('${vaftLog.toString()}'));
@@ -258,6 +261,67 @@ test('stream pruning keeps a paused stream and drops one the viewer left', () =>
         { names: ['current'], urls: ['current.m3u8'] });
     // Two recent streams are both kept, and a malformed entry is always removed.
     assert.deepEqual(prune({ a: stream(5, 'a.m3u8'), b: stream(29, 'b.m3u8'), broken: { Urls: { 'x.m3u8': {} } } }).names, ['a', 'b']);
+});
+
+// 38.0.5: recovery when the script started after Twitch's player worker.
+test('late start: an unhooked live worker gets one player reload, then one guarded page reload', () => {
+    const block = legacySource.match(/\n    const unhookedWorkerState = [\s\S]*?\n    \/\/ Poll the player state/)?.[0];
+    assert.ok(block, 'late-start recovery block not found');
+    const make = () => {
+        const events = [];
+        const stores = { local: {}, session: {} };
+        const storage = bag => ({ getItem: k => (k in bag ? bag[k] : null), setItem: (k, v) => { bag[k] = String(v); } });
+        const state = { now: 1000000, hidden: false };
+        const context = vm.createContext({
+            hookedTwitchWorkers: new WeakSet(), playerBufferState: { userPauseIntent: false },
+            document: { get hidden() { return state.hidden; }, pictureInPictureElement: null },
+            localStorage: storage(stores.local), sessionStorage: storage(stores.session),
+            location: { reload: () => events.push('page-reload') },
+            vaftLog: (text, level) => { if (level) events.push(level + ': ' + text); },
+            doTwitchPlayerTask: (...args) => events.push('player-reload ' + args.join(',')),
+            Date: { now: () => state.now }, parseInt, Math, String
+        });
+        vm.runInContext(block.replace(/\n    \/\/ Poll the player state$/, ''), context);
+        const video = { isConnected: true, readyState: 4, paused: false, ended: false };
+        const player = worker => ({ core: { worker }, getHTMLVideoElement: () => video });
+        const check = (worker, isLive = true) => context.checkUnhookedPlayerWorker(player(worker), isLive);
+        return { events, state, context, stores, video, check };
+    };
+    const worker = () => ({ postMessage() {} });
+
+    // A worker created through the hook never triggers anything.
+    const fine = make(); const hooked = worker(); fine.context.hookedTwitchWorkers.add(hooked);
+    fine.check(hooked); fine.state.now += 60000; fine.check(hooked);
+    assert.deepEqual(fine.events, []);
+
+    // An unhooked worker: nothing for 5 s, then the player reload, then the page reload, then silence.
+    const late = make(); const stranger = worker();
+    late.check(stranger); late.state.now += 4000; late.check(stranger);
+    assert.deepEqual(late.events, []);
+    late.state.now += 1500; late.check(stranger);
+    assert.equal(late.events.length, 2);
+    assert.match(late.events[0], /^warn: Le script a démarré après le lecteur/);
+    assert.equal(late.events[1], 'player-reload false,true,worker-recovery');
+    late.state.now += 6000; late.check(stranger);
+    assert.match(late.events[2], /^warn: .*rechargement de la page$/);
+    assert.equal(late.events[3], 'page-reload');
+    late.state.now += 60000; late.check(stranger); late.check(stranger);
+    assert.equal(late.events.length, 4);
+
+    // The page reload is refused when this tab was reloaded less than 10 minutes ago, and says so once.
+    const guarded = make(); const w2 = worker();
+    guarded.stores.session.matteo12sa_unhookedPageReloadAt = String(guarded.state.now - 60000);
+    guarded.check(w2); guarded.state.now += 6000; guarded.check(w2); guarded.state.now += 6000; guarded.check(w2); guarded.check(w2);
+    assert.equal(guarded.events.filter(e => e === 'page-reload').length, 0);
+    assert.equal(guarded.events.filter(e => /Recharge la page pour l'activer/.test(e)).length, 1);
+
+    // Never on a VOD, on a paused video, or in a hidden tab.
+    for (const tweak of [t => ({ isLive: false }), t => { t.video.paused = true; return {}; }, t => { t.state.hidden = true; return {}; }]) {
+        const quiet = make(); const w3 = worker(); const opts = tweak(quiet);
+        const isLive = opts.isLive !== false;
+        quiet.check(w3, isLive); quiet.state.now += 20000; quiet.check(w3, isLive); quiet.state.now += 20000; quiet.check(w3, isLive);
+        assert.deepEqual(quiet.events, []);
+    }
 });
 
 // 37.0.8: shapes observed on Twitch on 12 November 2026 that 37.0.7 let through.

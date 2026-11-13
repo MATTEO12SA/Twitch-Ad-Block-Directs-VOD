@@ -1,5 +1,18 @@
 # Validation et contribution
 
+## Version 38.0.5 — 13 novembre 2026
+
+- Base : 38.0.4 (commit `6a1ac69`). Ajout : `hookedTwitchWorkers`, `checkUnhookedPlayerWorker`, `tryUnhookedPageReload`, et le type de rechargement `worker-recovery` (remplace aussi un lecteur sain, nouvelle instance et nouveau jeton).
+- Corps du moteur : SHA-256 `9d7ed7ecb21cd2dfb570e5012edb29eea77fe64baf19f96243cc150a1ba20600`.
+- Le nouveau test exécute le vrai bloc de code avec une horloge simulée : Worker instrumenté ignoré, rien avant 5 secondes, rechargement du lecteur, puis rechargement de page, puis silence ; refus du rechargement de page s'il date de moins de 10 minutes ; aucune action sur une VOD, une vidéo en pause ou un onglet caché.
+- **91 tests Node réussis** et **128 scénarios natifs réussis**.
+- Essais réels sur Twitch avec l'outil d'injection tardive (script injecté une fois le direct en lecture) :
+  - 38.0.4 : « chargé » s'affiche, la coupure simulée n'est pas détectée ;
+  - 38.0.5, script de nouveau en retard après le rechargement de page : rechargement du lecteur, rechargement de page, puis message « le blocage n'est pas actif », sans boucle ;
+  - 38.0.5, script à l'heure après le rechargement de page : Worker instrumenté, coupure simulée détectée et bloquée.
+- Usage normal sans faux déclenchement : direct avec coupure simulée (y compris après le rechargement de fin de coupure), direct avec TwitchNoSub, VOD.
+- Non couvert : la fréquence réelle des démarrages tardifs avec Violentmonkey n'a pas été mesurée.
+
 ## Version 38.0.4 — 13 novembre 2026
 
 - Base : 38.0.3 (commit `97cfc53`). Un seul changement : `pruneStreamInfos` ne supprime un flux non interrogé depuis 30 minutes que si un autre flux du même Worker a été interrogé pendant cette durée.

@@ -1,6 +1,6 @@
 # Twitch Ad Block Directs & VOD
 
-**Par MATTEO12SA · Pour Violentmonkey · Version 38.0.4**
+**Par MATTEO12SA · Pour Violentmonkey · Version 38.0.5**
 
 Un userscript pour bloquer les publicités des directs Twitch avec VAFT et filtrer certains formats publicitaires vidéo avant et pendant les rediffusions.
 
@@ -11,7 +11,7 @@ Un userscript pour bloquer les publicités des directs Twitch avec VAFT et filtr
 1. Installer [Violentmonkey](https://violentmonkey.github.io/get-it/).
 2. Garder une seule version de VAFT active. Désactiver les anciens scripts TwitchAdSolutions et l'ancien complément **VOD VAST - test** s'il est encore installé.
 3. Cliquer sur **Installer ou mettre à jour le script**, puis confirmer dans Violentmonkey.
-4. Vérifier la version **38.0.4**, puis recharger Twitch.
+4. Vérifier la version **38.0.5**, puis recharger Twitch.
 
 Si le lien affiche uniquement du code, copier son contenu dans l'éditeur de l'entrée existante **TwitchAD VAFT MATTEO12SA**, remplacer l'ancien code, enregistrer puis recharger Twitch. Le nom et le namespace restent identiques pour conserver cette entrée lors des mises à jour.
 
@@ -30,6 +30,7 @@ Depuis la 38.0.2, le moteur des directs est nouveau ; le filtre VOD de la 37.0.8
 Les lignes du script commencent par une balise violette **MATTEO12SA**, pour les repérer parmi celles de Twitch.
 
 - **Par défaut**, seules les lignes utiles s'affichent : version chargée, pub détectée, pub bloquée, fin de la pub, rechargement du lecteur, pub VOD bloquée, et les problèmes.
+- **Démarrage tardif :** si le script démarre après le lecteur de Twitch, il recharge le lecteur, puis la page si nécessaire (une fois au plus toutes les 10 minutes par onglet), et l'annonce en orange.
 - **Journal détaillé :** taper `matteo12saDebug()` dans la console. `matteo12saDebug(false)` revient au mode court. Le choix est conservé.
 
 ## Mises à jour et aide

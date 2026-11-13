@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         TwitchAD VAFT MATTEO12SA
 // @namespace    https://github.com/MATTEO12SA/twitch-vaft-violentmonkey
-// @version      38.0.3
+// @version      38.0.4
 // @description  Bloque les publicités Twitch en direct (moteur vaft 68.5.7 de ryanbr/TwitchAdSolutions) et filtre les pré-rolls et mid-rolls VOD VAST pris en charge.
 // @updateURL    https://raw.githubusercontent.com/MATTEO12SA/Twitch-Ad-Block-Directs-VOD/main/vaft.user.js
 // @downloadURL  https://raw.githubusercontent.com/MATTEO12SA/Twitch-Ad-Block-Directs-VOD/main/vaft.user.js
@@ -51,7 +51,7 @@
     }
     'use strict';
     const ourTwitchAdSolutionsVersion = 93;// Used to prevent conflicts with outdated versions of the scripts
-    const MATTEO12SA_VERSION = '38.0.3';// MATTEO12SA: shown in the console; a test keeps it equal to @version
+    const MATTEO12SA_VERSION = '38.0.4';// MATTEO12SA: shown in the console; a test keeps it equal to @version
     vaftLog('[AD DEBUG] TwitchAdSolutions vaft v' + ourTwitchAdSolutionsVersion + ' loading');
     if (window.top === window.self) vaftLog('Twitch Ad Block ' + MATTEO12SA_VERSION + ' chargé', 'info');
     if (typeof window.twitchAdSolutionsVersion !== 'undefined' && window.twitchAdSolutionsVersion >= ourTwitchAdSolutionsVersion) {
@@ -152,9 +152,19 @@
     }
     function pruneStreamInfos() {
         const now = Date.now();
+        // MATTEO12SA: a paused player polls nothing but resumes with the same playlists. If its stream is
+        // forgotten, every ad passes unfiltered after a pause of more than 30 minutes, until the page is reloaded.
+        // A stale stream is therefore dropped only while another stream of this worker is being polled, which
+        // means the viewer moved to another channel. Same approach as Helli24/TwitchAdSolutions v68.11.0.
+        let newestSeenAt = 0;
+        for (const channelName in StreamInfos) {
+            const seenAt = StreamInfos[channelName] && StreamInfos[channelName].LastSeenAt;
+            if (seenAt > newestSeenAt) newestSeenAt = seenAt;
+        }
+        const anotherStreamActive = newestSeenAt > 0 && (now - newestSeenAt) <= StreamInfoMaxAgeMs;
         for (const channelName in StreamInfos) {
             const streamInfo = StreamInfos[channelName];
-            if (!streamInfo || !streamInfo.LastSeenAt || (now - streamInfo.LastSeenAt) > StreamInfoMaxAgeMs) {
+            if (!streamInfo || !streamInfo.LastSeenAt || ((now - streamInfo.LastSeenAt) > StreamInfoMaxAgeMs && anotherStreamActive)) {
                 if (streamInfo && streamInfo.Urls) {
                     for (const url in streamInfo.Urls) {
                         delete StreamInfosByUrl[url];

@@ -1,5 +1,13 @@
 # Validation et contribution
 
+## Version 38.0.4 — 13 novembre 2026
+
+- Base : 38.0.3 (commit `97cfc53`). Un seul changement : `pruneStreamInfos` ne supprime un flux non interrogé depuis 30 minutes que si un autre flux du même Worker a été interrogé pendant cette durée.
+- Le nouveau test exécute la vraie fonction, extraite du script : flux en pause depuis trois heures conservé avec ses adresses de playlists, flux quitté supprimé quand un autre est actif, entrée mal formée toujours supprimée. Sur le code de la 38.0.3, il échoue au premier cas.
+- Corps du moteur : SHA-256 `fbad54fac2db1e66057b118ecc09542c5fe7dcbcb7b7ce418a1ac9bb9f7534af`.
+- **90 tests Node réussis** et **128 scénarios natifs réussis**. Essais réels sur Twitch sans erreur : direct avec coupure simulée, VOD.
+- Non couvert : la pause réelle de plus de 30 minutes suivie d'une publicité n'a pas été rejouée sur Twitch.
+
 ## Version 38.0.3 — 13 novembre 2026
 
 - Base : 38.0.2 (commit `acf19e4`). Changement limité à la console.

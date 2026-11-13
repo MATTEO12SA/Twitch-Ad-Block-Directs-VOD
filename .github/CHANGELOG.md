@@ -1,5 +1,13 @@
 # Journal des versions
 
+## 38.0.4 — 13 novembre 2026
+
+- **Publicités non bloquées après une longue pause :** quand un direct restait en pause plus de 30 minutes, le moteur oubliait ce flux. À la reprise, ses playlists passaient sans filtre et les publicités s'affichaient jusqu'au rechargement de la page.
+- Cause : un nettoyage périodique supprimait tout flux non interrogé depuis 30 minutes, alors qu'un lecteur en pause n'interroge rien mais reprend avec les mêmes playlists.
+- Correction : un flux ancien n'est oublié que si un autre flux est actif dans le même Worker, c'est-à-dire quand on a changé de chaîne. Même approche que [Helli24/TwitchAdSolutions](https://github.com/Helli24/TwitchAdSolutions) v68.11.0, qui a identifié ce défaut.
+- Rien d'autre ne change : flux de secours, lecteur, console et filtre VOD sont identiques à la 38.0.3.
+- Validation : 90 tests Node (un nouveau, qui échoue sur la 38.0.3 et réussit ici), 128 scénarios natifs Chrome/Edge, essais réels sur Twitch (direct avec coupure simulée, VOD) sans erreur. Une vraie pause de 30 minutes n'a pas été rejouée sur Twitch.
+
 ## 38.0.3 — 13 novembre 2026
 
 Console du navigateur (F12) uniquement. Le blocage des publicités n'est pas modifié.

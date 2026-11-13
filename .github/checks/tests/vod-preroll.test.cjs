@@ -23,7 +23,7 @@ test('release metadata keeps the existing installation and main update URLs', ()
     const metadata = name => source.match(new RegExp('^// @' + name + '\\s+(.+)$', 'm'))?.[1].trim();
     assert.equal(metadata('name'), 'TwitchAD VAFT MATTEO12SA');
     assert.equal(metadata('namespace'), 'https://github.com/MATTEO12SA/twitch-vaft-violentmonkey');
-    assert.equal(metadata('version'), '38.0.3');
+    assert.equal(metadata('version'), '38.0.4');
     // The version printed in the console must follow the published one.
     assert.equal(source.match(/const MATTEO12SA_VERSION = '([^']+)';/)?.[1], metadata('version'));
     assert.equal(metadata('updateURL'), 'https://raw.githubusercontent.com/MATTEO12SA/Twitch-Ad-Block-Directs-VOD/main/vaft.user.js');
@@ -48,11 +48,13 @@ test('release metadata keeps the existing installation and main update URLs', ()
 //      correction, auto-resume and separate-ad-video hiding apply to live content only;
 //   6. 38.0.2: the ad-completion spoofing (off by default upstream, never executed here) is removed;
 //   7. 38.0.3: every console line goes through vaftLog (coloured MATTEO12SA tag, detailed journal off by
-//      default, switched with matteo12saDebug()), and eight always-visible lines in French are added.
+//      default, switched with matteo12saDebug()), and eight always-visible lines in French are added;
+//   8. 38.0.4: a stream that is no longer polled is forgotten only while another stream is active, so a paused
+//      player keeps its ad filtering (approach of Helli24/TwitchAdSolutions v68.11.0).
 test('live engine is upstream vaft 68.5.7 with only the documented changes', () => {
     const body = legacySource.slice(legacySource.indexOf('// ==/UserScript==') + '// ==/UserScript=='.length).trim();
     assert.equal(crypto.createHash('sha256').update(body).digest('hex'),
-        '3588813f5c60ea52064813ee0dc1bd475e08a076be1c8776aa1349b1c31740f5');
+        'fbad54fac2db1e66057b118ecc09542c5fe7dcbcb7b7ce418a1ac9bb9f7534af');
     // No direct console call is left in the engine: everything is tagged.
     assert.doesNotMatch(body, /console\.(log|error|warn|info|debug)\(/);
     assert.ok(body.includes('${vaftLog.toString()}'));
@@ -233,6 +235,29 @@ test('engine logger: tag on every line, detailed journal hidden until it is swit
     const worker = vm.createContext({ console: { log() { throw new Error('should stay silent'); } } });
     vm.runInContext(fnSource, worker);
     vm.runInContext("vaftLog('detail')", worker);
+});
+
+// 38.0.4: a stream must stay registered while its player is paused, or its ads pass unfiltered on resume.
+test('stream pruning keeps a paused stream and drops one the viewer left', () => {
+    const fnSource = legacySource.match(/\n    function pruneStreamInfos\(\) \{\n[\s\S]*?\n    \}\n/)?.[0];
+    assert.ok(fnSource, 'pruneStreamInfos must be a plain function declaration');
+    const minutes = n => Date.now() - n * 60 * 1000;
+    const prune = streams => {
+        const byUrl = Object.create(null);
+        for (const name in streams) for (const url in streams[name].Urls || {}) byUrl[url] = streams[name];
+        const context = vm.createContext({ StreamInfos: streams, StreamInfosByUrl: byUrl, StreamInfoMaxAgeMs: 30 * 60 * 1000 });
+        vm.runInContext(fnSource + '\npruneStreamInfos();', context);
+        return { names: Object.keys(streams), urls: Object.keys(byUrl) };
+    };
+    const stream = (seenMinutesAgo, url) => ({ LastSeenAt: minutes(seenMinutesAgo), Urls: { [url]: {} } });
+
+    // Paused for three hours, nothing else polled in this worker: the stream and its playlist URLs stay known.
+    assert.deepEqual(prune({ paused: stream(180, 'paused.m3u8') }), { names: ['paused'], urls: ['paused.m3u8'] });
+    // The viewer moved to another channel, which is being polled: the old stream is dropped.
+    assert.deepEqual(prune({ left: stream(45, 'left.m3u8'), current: stream(0, 'current.m3u8') }),
+        { names: ['current'], urls: ['current.m3u8'] });
+    // Two recent streams are both kept, and a malformed entry is always removed.
+    assert.deepEqual(prune({ a: stream(5, 'a.m3u8'), b: stream(29, 'b.m3u8'), broken: { Urls: { 'x.m3u8': {} } } }).names, ['a', 'b']);
 });
 
 // 37.0.8: shapes observed on Twitch on 12 November 2026 that 37.0.7 let through.

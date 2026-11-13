@@ -1,6 +1,6 @@
 # Twitch Ad Block Directs & VOD
 
-**Par MATTEO12SA · Pour Violentmonkey · Version 38.0.3**
+**Par MATTEO12SA · Pour Violentmonkey · Version 38.0.4**
 
 Un userscript pour bloquer les publicités des directs Twitch avec VAFT et filtrer certains formats publicitaires vidéo avant et pendant les rediffusions.
 
@@ -11,7 +11,7 @@ Un userscript pour bloquer les publicités des directs Twitch avec VAFT et filtr
 1. Installer [Violentmonkey](https://violentmonkey.github.io/get-it/).
 2. Garder une seule version de VAFT active. Désactiver les anciens scripts TwitchAdSolutions et l'ancien complément **VOD VAST - test** s'il est encore installé.
 3. Cliquer sur **Installer ou mettre à jour le script**, puis confirmer dans Violentmonkey.
-4. Vérifier la version **38.0.3**, puis recharger Twitch.
+4. Vérifier la version **38.0.4**, puis recharger Twitch.
 
 Si le lien affiche uniquement du code, copier son contenu dans l'éditeur de l'entrée existante **TwitchAD VAFT MATTEO12SA**, remplacer l'ancien code, enregistrer puis recharger Twitch. Le nom et le namespace restent identiques pour conserver cette entrée lors des mises à jour.
 
@@ -40,4 +40,4 @@ Pour [signaler un problème](https://github.com/MATTEO12SA/Twitch-Ad-Block-Direc
 
 ## Crédits
 
-Projet indépendant fondé sur [TwitchAdSolutions](https://github.com/pixeltris/TwitchAdSolutions) et, depuis la 38.0.0, sur le moteur des directs de son fork [ryanbr/TwitchAdSolutions](https://github.com/ryanbr/TwitchAdSolutions) (licence MIT), avec un ajout pour les VOD. [Crédits d'origine](https://github.com/cleanlock/VideoAdBlockForTwitch#credits) · [Licence MIT](LICENSE).
+Projet indépendant fondé sur [TwitchAdSolutions](https://github.com/pixeltris/TwitchAdSolutions) et, depuis la 38.0.0, sur le moteur des directs de son fork [ryanbr/TwitchAdSolutions](https://github.com/ryanbr/TwitchAdSolutions) (licence MIT), avec un ajout pour les VOD. Certaines corrections reprennent l'approche du fork [Helli24/TwitchAdSolutions](https://github.com/Helli24/TwitchAdSolutions) (licence MIT) ; elles sont signalées dans le journal des versions. [Crédits d'origine](https://github.com/cleanlock/VideoAdBlockForTwitch#credits) · [Licence MIT](LICENSE).
